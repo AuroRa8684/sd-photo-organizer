@@ -205,3 +205,28 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# env
+backend/.env
+frontend/.env
+
+# python
+backend/.venv/
+**/__pycache__/
+*.pyc
+
+# node
+frontend/node_modules/
+frontend/dist/
+
+# local data (photos, exports, cache)
+data/
+exports/
+thumbs/
+*.zip
+*.db
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/*.log
