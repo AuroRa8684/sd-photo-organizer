@@ -58,3 +58,35 @@ export function updatePhoto(photoId, updates) {
 export function getCategories() {
   return http.get('/ai/categories')
 }
+
+/**
+ * 批量删除照片
+ * @param {number[]} photoIds - 照片ID列表
+ */
+export function batchDeletePhotos(photoIds) {
+  return http.delete('/photos/batch', { data: { photo_ids: photoIds } })
+}
+
+/**
+ * 批量更新照片
+ * @param {number[]} photoIds - 照片ID列表
+ * @param {object} updates - 更新内容 {category?, is_selected?}
+ */
+export function batchUpdatePhotos(photoIds, updates) {
+  return http.patch('/photos/batch', { photo_ids: photoIds, ...updates })
+}
+
+/**
+ * 获取系统驱动器列表
+ */
+export function getSystemDrives() {
+  return http.get('/photos/system/drives')
+}
+
+/**
+ * 浏览目录
+ * @param {string} path - 目录路径
+ */
+export function browseDirectory(path = '') {
+  return http.get('/photos/system/browse', { params: { path } })
+}

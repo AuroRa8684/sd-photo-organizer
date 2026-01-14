@@ -30,7 +30,8 @@ class Settings(BaseSettings):
     # AI配置
     ai_api_key: str = ""
     ai_base_url: str = "https://api.openai.com/v1"
-    ai_model: str = "gpt-4o"
+    ai_model: str = "gpt-4o"  # 视觉模型，用于图片分类
+    ai_text_model: str = ""   # 文本模型，用于生成总结（留空则使用ai_model）
     
     # 缩略图目录
     thumbs_dir: str = "storage/thumbs"

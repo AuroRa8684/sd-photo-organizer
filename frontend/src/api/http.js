@@ -8,7 +8,7 @@ import { ElMessage } from 'element-plus'
 // 创建axios实例
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000',
-  timeout: 60000, // 60秒超时（AI调用可能较慢）
+  timeout: 120000, // 120秒超时（AI调用可能较慢）
   headers: {
     'Content-Type': 'application/json'
   }

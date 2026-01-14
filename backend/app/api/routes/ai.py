@@ -19,12 +19,14 @@ async def classify_photos(request: ClassifyRequest, db: Session = Depends(get_db
     - 使用多模态大模型识别图片内容
     - 自动分配类别和标签
     - 支持并发处理（4线程）
+    - 可选跳过已分类照片
     """
     try:
         ai_service = AIService(db)
         result = ai_service.classify_photos(
             photo_ids=request.photo_ids,
             max_workers=request.max_workers,
+            skip_classified=request.skip_classified,
         )
         return ApiResponse(data=result, message=result.get("message", "分类完成"))
     except Exception as e:

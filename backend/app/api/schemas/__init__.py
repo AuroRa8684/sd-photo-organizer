@@ -11,6 +11,8 @@ from .requests import (
     ClassifyRequest,
     SummaryRequest,
     ExportRequest,
+    BatchDeleteRequest,
+    BatchUpdateRequest,
 )
 
 __all__ = [
@@ -23,4 +25,6 @@ __all__ = [
     "ClassifyRequest",
     "SummaryRequest",
     "ExportRequest",
+    "BatchDeleteRequest",
+    "BatchUpdateRequest",
 ]

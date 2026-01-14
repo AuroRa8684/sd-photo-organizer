@@ -45,6 +45,9 @@
             clearable
           >
             <template #append>
+              <el-button @click="showSdPathPicker = true">
+                <el-icon><FolderOpened /></el-icon>
+              </el-button>
               <el-button @click="previewPath" :loading="previewing">
                 预览
               </el-button>
@@ -60,13 +63,33 @@
             v-model="form.libraryRoot"
             placeholder="输入本地图库根目录，例如: D:\PhotoLibrary"
             clearable
-          />
+          >
+            <template #append>
+              <el-button @click="showLibraryPicker = true">
+                <el-icon><FolderOpened /></el-icon>
+              </el-button>
+            </template>
+          </el-input>
           <div class="form-tip">
             照片将按 <code>图库目录/YYYY-MM-DD/类别/</code> 规则整理
           </div>
         </el-form-item>
       </el-form>
     </div>
+
+    <!-- 文件夹选择器 -->
+    <FolderPicker
+      v-model="showSdPathPicker"
+      title="选择SD卡目录"
+      :initial-path="form.sdPath"
+      @select="(path) => form.sdPath = path"
+    />
+    <FolderPicker
+      v-model="showLibraryPicker"
+      title="选择本地图库目录"
+      :initial-path="form.libraryRoot"
+      @select="(path) => form.libraryRoot = path"
+    />
 
     <!-- 操作按钮 -->
     <div class="content-card">
@@ -164,12 +187,17 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, FolderOpened } from '@element-plus/icons-vue'
 import { scanDirectory, previewDirectory, importToLibrary, getQuickStats } from '@/api'
+import FolderPicker from '@/components/FolderPicker.vue'
 
 // 表单数据
 const form = reactive({
   sdPath: '',
   libraryRoot: ''
 })
+
+// 文件夹选择器
+const showSdPathPicker = ref(false)
+const showLibraryPicker = ref(false)
 
 // 状态
 const stats = ref({})

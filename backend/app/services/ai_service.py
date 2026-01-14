@@ -17,18 +17,15 @@ from ..db.photos_repo import PhotosRepository
 # 固定类别列表
 CATEGORIES = ["人像", "风光", "街拍", "建筑", "美食", "夜景", "动物", "活动", "微距", "未分类"]
 
-# 分类Prompt模板
-CLASSIFY_PROMPT = """你是一名摄影内容标注助手。请根据输入图片完成如下任务，并只输出 JSON：
-1) 从固定类别列表中选择最匹配的 category：
-   [人像, 风光, 街拍, 建筑, 美食, 夜景, 动物, 活动, 微距, 未分类]
-2) 给出 3-6 个中文 tags（短词/短语）
-3) 给出一句 caption（不超过 25 字）
-4) 给出 confidence（0-1）
+# 分类Prompt模板 - 简化版，兼容性更好
+CLASSIFY_PROMPT = """Analyze this image. Return JSON with these fields:
+- category: Choose from [人像, 风光, 街拍, 建筑, 美食, 夜景, 动物, 活动, 微距, 未分类]
+- tags: 3-6 Chinese keywords describing the image
+- caption: A brief Chinese description (max 25 chars)
+- confidence: 0-1 score
 
-输出 JSON 示例：
-{"category":"风光","tags":["海边","日落","剪影"],"caption":"海边日落剪影","confidence":0.78}
-
-请只输出JSON，不要有其他文字。"""
+Example: {"category":"风光","tags":["海边","日落"],"caption":"海边日落","confidence":0.8}
+Return ONLY JSON, no other text."""
 
 
 class AIService:
@@ -43,6 +40,7 @@ class AIService:
         self,
         photo_ids: List[int],
         max_workers: int = 4,
+        skip_classified: bool = False,
     ) -> Dict[str, Any]:
         """
         批量对照片进行AI分类
@@ -50,6 +48,7 @@ class AIService:
         Args:
             photo_ids: 照片ID列表
             max_workers: 并发线程数
+            skip_classified: 是否跳过已分类照片
         
         Returns:
             分类结果统计
@@ -64,11 +63,20 @@ class AIService:
         photos = [self.repo.get_by_id(pid) for pid in photo_ids]
         photos = [p for p in photos if p is not None]
         
+        # 跳过已分类照片
+        skipped = 0
+        if skip_classified:
+            original_count = len(photos)
+            photos = [p for p in photos if p.category == "未分类"]
+            skipped = original_count - len(photos)
+        
         if not photos:
+            msg = "没有需要分类的照片" if skipped > 0 else "未找到指定的照片"
             return {
-                "success": False,
-                "message": "未找到指定的照片",
+                "success": True,
+                "message": f"{msg}（跳过 {skipped} 张已分类）" if skipped else msg,
                 "classified": 0,
+                "skipped": skipped,
             }
         
         results = {
@@ -177,20 +185,20 @@ class AIService:
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": CLASSIFY_PROMPT},
                         {
                             "type": "image_url",
                             "image_url": {
                                 "url": f"data:image/jpeg;base64,{image_base64}"
                             }
-                        }
+                        },
+                        {"type": "text", "text": CLASSIFY_PROMPT},
                     ]
                 }
             ],
             "max_tokens": 500,
         }
         
-        with httpx.Client(timeout=60.0) as client:
+        with httpx.Client(timeout=120.0) as client:
             response = client.post(
                 f"{settings.ai_base_url}/chat/completions",
                 headers=headers,

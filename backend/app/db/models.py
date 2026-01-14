@@ -87,3 +87,43 @@ class Photo(Base):
             "created_at": created_at.isoformat() if created_at else None,
             "updated_at": updated_at.isoformat() if updated_at else None,
         }
+
+
+class SummaryHistory(Base):
+    """
+    拍摄总结历史记录模型
+    保存每次生成的总结
+    """
+    __tablename__ = "summary_history"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # 总结标题（自动生成）
+    title = Column(String(255), nullable=False, comment="总结标题")
+    
+    # 日期范围
+    date_from = Column(DateTime, nullable=True, comment="统计开始日期")
+    date_to = Column(DateTime, nullable=True, comment="统计结束日期")
+    
+    # 统计数据
+    stats_json = Column(JSON, nullable=True, comment="统计数据JSON")
+    charts_json = Column(JSON, nullable=True, comment="图表数据JSON")
+    
+    # AI总结内容
+    ai_summary = Column(Text, nullable=True, comment="AI生成的总结")
+    
+    # 时间戳
+    created_at = Column(DateTime, nullable=False, default=datetime.now, comment="创建时间")
+    
+    def to_dict(self) -> dict:
+        """转换为字典"""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "date_from": self.date_from.isoformat() if self.date_from else None,
+            "date_to": self.date_to.isoformat() if self.date_to else None,
+            "stats": self.stats_json,
+            "charts": self.charts_json,
+            "ai_summary": self.ai_summary,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

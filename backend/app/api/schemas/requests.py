@@ -64,6 +64,7 @@ class ClassifyRequest(BaseModel):
     """AI分类请求"""
     photo_ids: List[int] = Field(..., description="要分类的照片ID列表")
     max_workers: int = Field(4, ge=1, le=8, description="并发线程数")
+    skip_classified: bool = Field(False, description="跳过已分类照片")
 
 
 # ========== 总结相关 ==========
@@ -72,6 +73,7 @@ class SummaryRequest(BaseModel):
     """生成总结请求"""
     date_from: Optional[datetime] = Field(None, description="开始日期")
     date_to: Optional[datetime] = Field(None, description="结束日期")
+    save_history: bool = Field(True, description="是否保存到历史记录")
 
 
 # ========== 导出相关 ==========
@@ -82,3 +84,17 @@ class ExportRequest(BaseModel):
     include_raw: bool = Field(True, description="是否包含RAW文件")
     as_zip: bool = Field(False, description="是否打包为ZIP")
     photo_ids: Optional[List[int]] = Field(None, description="指定导出的照片ID（可选）")
+
+
+# ========== 照片批量操作 ==========
+
+class BatchDeleteRequest(BaseModel):
+    """批量删除照片请求"""
+    photo_ids: List[int] = Field(..., description="要删除的照片ID列表")
+
+
+class BatchUpdateRequest(BaseModel):
+    """批量更新照片请求"""
+    photo_ids: List[int] = Field(..., description="要更新的照片ID列表")
+    category: Optional[str] = Field(None, description="类别")
+    is_selected: Optional[bool] = Field(None, description="是否精选")

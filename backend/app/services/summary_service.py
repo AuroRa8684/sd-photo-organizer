@@ -3,13 +3,14 @@
 负责生成统计数据和AI拍摄总结
 """
 import json
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 import httpx
 from sqlalchemy.orm import Session
 
 from ..core.config import get_settings
 from ..db.photos_repo import PhotosRepository
+from ..db.models import SummaryHistory
 
 
 # 总结生成Prompt模板
@@ -37,6 +38,7 @@ class SummaryService:
         self,
         date_from: Optional[datetime] = None,
         date_to: Optional[datetime] = None,
+        save_history: bool = True,
     ) -> Dict[str, Any]:
         """
         生成拍摄总结
@@ -44,6 +46,7 @@ class SummaryService:
         Args:
             date_from: 开始日期
             date_to: 结束日期
+            save_history: 是否保存到历史记录
         
         Returns:
             包含统计图表数据和AI生成文案的结果
@@ -60,6 +63,107 @@ class SummaryService:
         
         # 准备图表数据（前端可直接使用）
         chart_data = self._prepare_chart_data(stats)
+        
+        # 生成AI总结文案
+        ai_summary = None
+        if self.settings.ai_api_key and self.settings.ai_api_key != "your_api_key_here":
+            try:
+                ai_summary = self._generate_ai_summary(stats)
+            except Exception as e:
+                ai_summary = f"AI总结生成失败: {str(e)}"
+        else:
+            ai_summary = "未配置AI API Key，无法生成AI总结。请在.env文件中配置AI_API_KEY。"
+        
+        result = {
+            "success": True,
+            "message": "总结生成成功",
+            "stats": stats,
+            "charts": chart_data,
+            "ai_summary": ai_summary,
+            "date_range": {
+                "from": date_from.isoformat() if date_from else None,
+                "to": date_to.isoformat() if date_to else None,
+            }
+        }
+        
+        # 保存到历史记录
+        if save_history:
+            try:
+                history_id = self._save_to_history(date_from, date_to, stats, chart_data, ai_summary)
+                result["history_id"] = history_id
+            except Exception as e:
+                result["history_save_error"] = str(e)
+        
+        return result
+    
+    def _save_to_history(
+        self,
+        date_from: Optional[datetime],
+        date_to: Optional[datetime],
+        stats: Dict[str, Any],
+        charts: Dict[str, Any],
+        ai_summary: str,
+    ) -> int:
+        """保存总结到历史记录"""
+        # 生成标题
+        if date_from and date_to:
+            title = f"{date_from.strftime('%Y-%m-%d')} 至 {date_to.strftime('%Y-%m-%d')} 拍摄总结"
+        elif date_from:
+            title = f"{date_from.strftime('%Y-%m-%d')} 之后的拍摄总结"
+        elif date_to:
+            title = f"{date_to.strftime('%Y-%m-%d')} 之前的拍摄总结"
+        else:
+            title = f"全部照片总结 - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        
+        history = SummaryHistory(
+            title=title,
+            date_from=date_from,
+            date_to=date_to,
+            stats_json=stats,
+            charts_json=charts,
+            ai_summary=ai_summary,
+        )
+        self.db.add(history)
+        self.db.commit()
+        self.db.refresh(history)
+        return history.id
+    
+    def get_history_list(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """获取历史总结列表"""
+        histories = self.db.query(SummaryHistory).order_by(
+            SummaryHistory.created_at.desc()
+        ).limit(limit).all()
+        
+        return [
+            {
+                "id": h.id,
+                "title": h.title,
+                "date_from": h.date_from.isoformat() if h.date_from else None,
+                "date_to": h.date_to.isoformat() if h.date_to else None,
+                "total_photos": h.stats_json.get("total", 0) if h.stats_json else 0,
+                "created_at": h.created_at.isoformat() if h.created_at else None,
+            }
+            for h in histories
+        ]
+    
+    def get_history_detail(self, history_id: int) -> Optional[Dict[str, Any]]:
+        """获取历史总结详情"""
+        history = self.db.query(SummaryHistory).filter(
+            SummaryHistory.id == history_id
+        ).first()
+        
+        if not history:
+            return None
+        
+        return history.to_dict()
+    
+    def delete_history(self, history_id: int) -> bool:
+        """删除历史总结"""
+        result = self.db.query(SummaryHistory).filter(
+            SummaryHistory.id == history_id
+        ).delete()
+        self.db.commit()
+        return result > 0
         
         # 生成AI总结文案
         ai_summary = None
@@ -156,8 +260,11 @@ class SummaryService:
             "Authorization": f"Bearer {settings.ai_api_key}",
         }
         
+        # 使用文本模型（如果配置了），否则使用默认模型
+        model = settings.ai_text_model if settings.ai_text_model else settings.ai_model
+        
         payload = {
-            "model": settings.ai_model,
+            "model": model,
             "messages": [
                 {"role": "user", "content": prompt}
             ],

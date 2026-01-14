@@ -1,20 +1,25 @@
 """
 照片相关API路由
-包含：扫描、导入、查询、更新
+包含：扫描、导入、查询、更新、删除
 """
+import os
 from typing import Optional
 from datetime import datetime
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ...db import get_db, PhotosRepository
 from ...services import ScannerService, OrganizerService
+from ...core.config import get_settings
 from ..schemas import (
     ApiResponse,
     ScanRequest,
     ScanPreviewRequest,
     ImportRequest,
     PhotoUpdateRequest,
+    BatchDeleteRequest,
+    BatchUpdateRequest,
 )
 
 
@@ -170,3 +175,136 @@ async def get_categories(db: Session = Depends(get_db)):
     """获取所有可用的照片类别"""
     from ...services.ai_service import CATEGORIES
     return ApiResponse(data=CATEGORIES, message="获取成功")
+
+
+@router.delete("/batch", response_model=ApiResponse, summary="批量删除照片")
+async def batch_delete_photos(request: BatchDeleteRequest, db: Session = Depends(get_db)):
+    """
+    批量删除照片记录
+    - 仅删除数据库记录和缩略图
+    - 不会删除原始文件
+    """
+    try:
+        repo = PhotosRepository(db)
+        result = repo.batch_delete_photos(request.photo_ids)
+        
+        # 删除缩略图文件
+        settings = get_settings()
+        for sha1 in result.get("sha1_list", []):
+            thumb_path = settings.thumbs_path / f"{sha1}.jpg"
+            if thumb_path.exists():
+                try:
+                    thumb_path.unlink()
+                except Exception:
+                    pass
+        
+        return ApiResponse(
+            data={"deleted": result["deleted"]},
+            message=f"成功删除 {result['deleted']} 张照片"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/batch", response_model=ApiResponse, summary="批量更新照片")
+async def batch_update_photos(request: BatchUpdateRequest, db: Session = Depends(get_db)):
+    """
+    批量更新照片属性
+    - 可批量修改类别、精选状态等
+    """
+    try:
+        repo = PhotosRepository(db)
+        updates = {}
+        if request.category is not None:
+            updates["category"] = request.category
+        if request.is_selected is not None:
+            updates["is_selected"] = 1 if request.is_selected else 0
+        
+        if not updates:
+            return ApiResponse(data=None, message="没有要更新的字段")
+        
+        count = repo.batch_update_photos(request.photo_ids, updates)
+        return ApiResponse(data={"updated": count}, message=f"成功更新 {count} 张照片")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/system/drives", response_model=ApiResponse, summary="获取系统驱动器列表")
+async def get_system_drives():
+    """
+    获取Windows系统可用驱动器列表
+    用于文件夹选择器
+    """
+    drives = []
+    if os.name == 'nt':  # Windows
+        import string
+        for letter in string.ascii_uppercase:
+            drive = f"{letter}:\\"
+            if os.path.exists(drive):
+                try:
+                    # 尝试获取驱动器信息
+                    total, used, free = 0, 0, 0
+                    try:
+                        import shutil
+                        total, used, free = shutil.disk_usage(drive)
+                    except:
+                        pass
+                    drives.append({
+                        "path": drive,
+                        "name": f"{letter}:",
+                        "total": total,
+                        "free": free,
+                    })
+                except:
+                    pass
+    return ApiResponse(data=drives, message="获取驱动器列表成功")
+
+
+@router.get("/system/browse", response_model=ApiResponse, summary="浏览目录")
+async def browse_directory(path: str = Query("", description="目录路径")):
+    """
+    浏览指定目录下的子目录和文件
+    用于文件夹选择器
+    """
+    try:
+        if not path:
+            # 返回驱动器列表
+            return await get_system_drives()
+        
+        target_path = Path(path)
+        if not target_path.exists():
+            return ApiResponse(data=None, error="目录不存在", message="")
+        
+        if not target_path.is_dir():
+            return ApiResponse(data=None, error="不是有效目录", message="")
+        
+        items = []
+        try:
+            for item in sorted(target_path.iterdir()):
+                if item.is_dir():
+                    # 检查是否可访问
+                    try:
+                        list(item.iterdir())
+                        accessible = True
+                    except PermissionError:
+                        accessible = False
+                    
+                    items.append({
+                        "name": item.name,
+                        "path": str(item),
+                        "is_dir": True,
+                        "accessible": accessible,
+                    })
+        except PermissionError:
+            return ApiResponse(data=None, error="无权限访问该目录", message="")
+        
+        return ApiResponse(
+            data={
+                "current": str(target_path),
+                "parent": str(target_path.parent) if target_path.parent != target_path else None,
+                "items": items[:100],  # 限制返回数量
+            },
+            message="浏览成功"
+        )
+    except Exception as e:
+        return ApiResponse(data=None, error=str(e), message="")
