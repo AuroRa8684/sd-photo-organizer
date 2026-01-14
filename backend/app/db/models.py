@@ -3,8 +3,13 @@
 定义photos表对应的Python类
 """
 from datetime import datetime
-from sqlalchemy import Column, BigInteger, String, Text, DateTime, Integer, Float, JSON, Index
+from typing import Optional, List, TYPE_CHECKING
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, JSON, Index
 from .session import Base
+
+if TYPE_CHECKING:
+    # 类型检查时使用的类型提示
+    from datetime import datetime as dt_type
 
 
 class Photo(Base):
@@ -14,8 +19,8 @@ class Photo(Base):
     """
     __tablename__ = "photos"
     
-    # 主键
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    # 主键（SQLite需要使用Integer才能自增）
+    id = Column(Integer, primary_key=True, autoincrement=True)
     
     # 文件信息
     file_name = Column(String(255), nullable=False, comment="文件名")
@@ -56,13 +61,17 @@ class Photo(Base):
     
     def to_dict(self) -> dict:
         """转换为字典，用于API返回"""
+        taken_at: Optional[datetime] = self.taken_at  # type: ignore
+        created_at: Optional[datetime] = self.created_at  # type: ignore
+        updated_at: Optional[datetime] = self.updated_at  # type: ignore
+        
         return {
             "id": self.id,
             "file_name": self.file_name,
             "file_path": self.file_path,
             "raw_path": self.raw_path,
             "library_path": self.library_path,
-            "taken_at": self.taken_at.isoformat() if self.taken_at else None,
+            "taken_at": taken_at.isoformat() if taken_at else None,
             "camera_model": self.camera_model,
             "lens": self.lens,
             "focal_length": self.focal_length,
@@ -75,6 +84,6 @@ class Photo(Base):
             "is_selected": bool(self.is_selected),
             "sha1": self.sha1,
             "thumb_url": f"/static/thumbs/{self.sha1}.jpg",
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "created_at": created_at.isoformat() if created_at else None,
+            "updated_at": updated_at.isoformat() if updated_at else None,
         }
