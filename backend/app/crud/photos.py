@@ -58,6 +58,11 @@ async def list_photos(
     end_at: Optional[datetime] = None,
     category: Optional[str] = None,
     is_selected: Optional[int] = None,
+    # 新增：接收router层传递的焦段和ISO筛选参数
+    focal_min: Optional[float] = None,
+    focal_max: Optional[float] = None,
+    iso_min: Optional[int] = None,
+    iso_max: Optional[int] = None,
     page: int = 1,
     page_size: int = 20
 ) -> Dict[str, Any]:
@@ -87,7 +92,23 @@ async def list_photos(
         where_conditions.append("is_selected = %(is_selected)s")
         params["is_selected"] = is_selected
     
-    # 构建WHERE子句
+    # 新增：焦段范围过滤（focal_length为FLOAT类型，支持区间查询）
+    if focal_min is not None:
+        where_conditions.append("focal_length >= %(focal_min)s")
+        params["focal_min"] = focal_min
+    if focal_max is not None:
+        where_conditions.append("focal_length <= %(focal_max)s")
+        params["focal_max"] = focal_max
+    
+    # 新增：ISO范围过滤（iso为INT类型，支持区间查询）
+    if iso_min is not None:
+        where_conditions.append("iso >= %(iso_min)s")
+        params["iso_min"] = iso_min
+    if iso_max is not None:
+        where_conditions.append("iso <= %(iso_max)s")
+        params["iso_max"] = iso_max
+    
+    # 构建WHERE子句（无过滤条件时不拼接WHERE）
     where_clause = " WHERE " + " AND ".join(where_conditions) if where_conditions else ""
     
     # 1. 查询总数
@@ -120,7 +141,7 @@ async def list_photos(
                 item["taken_at"] = item["taken_at"].strftime("%Y-%m-%d %H:%M:%S")
             items.append(item)
     
-    logger.info(f"📋 照片查询完成: 总数={total}, 分页={page}/{(total + page_size -1)//page_size}")
+    logger.info(f"📋 照片查询完成: 总数={total}, 分页={page}/{(total + page_size -1)//page_size}, 筛选条件={params}")
     return {"total": total, "items": items}
 
 async def update_photo(
