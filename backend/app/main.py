@@ -13,9 +13,11 @@ from contextlib import asynccontextmanager
 import asyncio  # 新增：用于异步执行同步DB初始化
 import logging  # 新增：日志模块
 import sys      # 新增：日志输出配置
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from .core.config import get_settings, Settings  # 新增：导入Settings类型
 from .db import init_db
@@ -94,6 +96,23 @@ app.include_router(photos_router)
 app.include_router(ai_router)
 app.include_router(summary_router)
 app.include_router(export_router)
+
+
+# 添加请求验证错误处理器（捕获422错误详情）
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """捕获请求验证错误，记录详细信息"""
+    logger.error(f"❌ 请求验证失败: {request.url}")
+    logger.error(f"  错误详情: {exc.errors()}")
+    try:
+        body = await request.body()
+        logger.error(f"  请求体: {body[:500] if len(body) > 500 else body}")  # 只记录前500字节
+    except:
+        pass
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()}
+    )
 
 
 # 健康检查接口

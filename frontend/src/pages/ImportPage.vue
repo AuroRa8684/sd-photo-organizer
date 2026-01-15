@@ -385,11 +385,25 @@ const handleScan = async () => {
   
   try {
     const res = await scanDirectory(form.sdPath)
-    scanResult.value = res.data
+    console.log('扫描响应 res:', res)
+    console.log('res.data:', res?.data)
+    console.log('res.data?.photos:', res?.data?.photos?.length)
+    
+    // http拦截器返回的是response.data，所以res就是{data, message, error}
+    // res.data 是实际的扫描结果
+    const actualData = res?.data || res
+    console.log('actualData:', actualData)
+    console.log('actualData.photos:', actualData?.photos?.length)
+    if (actualData?.photos?.length > 0) {
+      console.log('第一张照片:', actualData.photos[0])
+    }
+    
+    scanResult.value = actualData
     classifyResult.value = null  // 重置分类结果
     ElMessage.success(res.message || '扫描完成')
     loadStats()
   } catch (error) {
+    console.error('扫描失败:', error)
     ElMessage.error('扫描失败，请检查目录路径是否正确')
   } finally {
     stopProgressSimulation('scan')
@@ -413,24 +427,33 @@ const handleAIClassify = async () => {
     const photoIds = scanResult.value.photos.map(p => p.id)
     console.log('Sending photoIds:', photoIds.length)
     const res = await classifyPhotos(photoIds, 4, true)
-    console.log('Classify response:', res)
+    console.log('Classify response (full):', JSON.stringify(res, null, 2).substring(0, 500))
+    console.log('Classify response type:', typeof res)
+    console.log('res.data:', res?.data)
+    console.log('res.success:', res?.success)
     
-    // res 已经是后端返回的 {data, message, error} 结构
+    // http拦截器已经返回 response.data，所以 res 就是 {data, message, error}
     // res.data 是实际的分类结果 {success, classified, details, ...}
-    const data = res.data || res
-    classifyResult.value = data
+    const actualData = res?.data || res
+    console.log('actualData:', actualData)
+    console.log('actualData.success:', actualData?.success)
     
-    if (data.success === false) {
-      ElMessage.warning(data.message || 'AI分类需要配置API Key')
+    classifyResult.value = actualData
+    
+    if (actualData.success === false) {
+      ElMessage.warning(actualData.message || 'AI分类需要配置API Key')
     } else {
-      ElMessage.success(data.message || `分类完成：${data.classified || 0}张照片`)
+      ElMessage.success(actualData.message || `分类完成：${actualData.classified || 0}张照片`)
     }
     loadStats()
   } catch (error) {
-    console.error('AI分类失败:', error)
-    console.error('Error type:', typeof error)
-    console.error('Error.message type:', typeof error?.message)
-    console.error('Error.message:', error?.message)
+    console.error('=== AI分类失败 ===')
+    console.error('error:', error)
+    console.error('typeof error:', typeof error)
+    console.error('error instanceof Error:', error instanceof Error)
+    console.error('error.message:', error?.message)
+    console.error('typeof error.message:', typeof error?.message)
+    console.error('error.response:', error?.response)
     
     let msg = '请检查网络连接和AI配置'
     if (typeof error === 'string') {
@@ -439,7 +462,8 @@ const handleAIClassify = async () => {
       msg = error.response.data.detail
     } else if (error?.response?.data?.message) {
       msg = error.response.data.message  
-    } else if (error?.message && typeof error.message === 'string') {
+    } else if (error?.message && typeof error.message === 'string' && error.message.length < 200) {
+      // 只使用短消息，避免长字符串
       msg = error.message
     }
     ElMessage.error(`分类失败: ${msg}`)

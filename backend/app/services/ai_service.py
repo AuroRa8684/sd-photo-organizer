@@ -88,10 +88,13 @@ class AIService:
             "errors": [],
         }
         
-        # 使用线程池并发处理
+        # 收集需要更新的结果（线程安全）
+        updates_to_apply = []
+        
+        # 使用线程池并发处理 AI 调用（不在线程中操作数据库）
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_photo = {
-                executor.submit(self._classify_single_photo, photo): photo
+                executor.submit(self._call_ai_for_photo, photo): photo
                 for photo in photos
             }
             
@@ -106,6 +109,13 @@ class AIService:
                             "category": result["category"],
                             "tags": result["tags"],
                         })
+                        # 收集更新数据，稍后在主线程中批量更新
+                        updates_to_apply.append({
+                            "photo_id": photo.id,
+                            "category": result.get("category", "未分类"),
+                            "tags_json": result.get("tags", []),
+                            "caption": result.get("caption", ""),
+                        })
                     else:
                         results["failed"] += 1
                         results["errors"].append({
@@ -119,13 +129,28 @@ class AIService:
                         "error": str(e)
                     })
         
+        # 在主线程中批量更新数据库（避免 SQLite 线程安全问题）
+        for update in updates_to_apply:
+            try:
+                self.repo.update_photo(update["photo_id"], {
+                    "category": update["category"],
+                    "tags_json": update["tags_json"],
+                    "caption": update["caption"],
+                })
+            except Exception as e:
+                # 数据库更新失败不影响整体结果，但记录错误
+                results["errors"].append({
+                    "photo_id": update["photo_id"],
+                    "error": f"数据库更新失败: {str(e)}"
+                })
+        
         results["message"] = f"AI分类完成：成功{results['classified']}张，失败{results['failed']}张"
         
         return results
     
-    def _classify_single_photo(self, photo, max_retries: int = 2) -> Dict[str, Any]:
+    def _call_ai_for_photo(self, photo, max_retries: int = 2) -> Dict[str, Any]:
         """
-        对单张照片进行AI分类
+        对单张照片调用 AI API 进行分类（不操作数据库，线程安全）
         """
         # 获取缩略图路径
         thumb_path = self.settings.thumbs_path / f"{photo.sha1}.jpg"
@@ -142,13 +167,7 @@ class AIService:
                 result = self._call_vision_api(image_base64)
                 
                 if result:
-                    # 更新数据库
-                    self.repo.update_photo(photo.id, {
-                        "category": result.get("category", "未分类"),
-                        "tags_json": result.get("tags", []),
-                        "caption": result.get("caption", ""),
-                    })
-                    
+                    # 只返回结果，不在这里更新数据库（避免线程安全问题）
                     return {
                         "success": True,
                         "category": result.get("category"),

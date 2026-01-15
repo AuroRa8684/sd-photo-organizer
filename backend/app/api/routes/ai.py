@@ -1,13 +1,15 @@
 """
 AI相关API路由
 """
-from fastapi import APIRouter, Depends, HTTPException
+import logging
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from ...db import get_db
 from ...services import AIService
 from ..schemas import ApiResponse, ClassifyRequest
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["AI功能"])
 
@@ -21,6 +23,7 @@ async def classify_photos(request: ClassifyRequest, db: Session = Depends(get_db
     - 支持并发处理（4线程）
     - 可选跳过已分类照片
     """
+    logger.info(f"收到分类请求: photo_ids={request.photo_ids[:5] if len(request.photo_ids) > 5 else request.photo_ids}... (共{len(request.photo_ids)}个)")
     try:
         if not request.photo_ids:
             return ApiResponse(data=None, message="请先选择要分类的照片", error="未选择照片")

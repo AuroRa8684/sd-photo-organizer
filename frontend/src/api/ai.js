@@ -10,9 +10,15 @@ import http from './http'
  * @param {boolean} skipClassified - 跳过已分类照片
  */
 export function classifyPhotos(photoIds, maxWorkers = 4, skipClassified = false) {
-  return http.post('/ai/classify', {
+  const payload = {
     photo_ids: photoIds,
     max_workers: maxWorkers,
     skip_classified: skipClassified
-  })
+  }
+  console.log('AI classify request payload:', JSON.stringify(payload))
+  console.log('photo_ids type:', typeof photoIds, 'isArray:', Array.isArray(photoIds))
+  if (photoIds.length > 0) {
+    console.log('First photo_id type:', typeof photoIds[0], 'value:', photoIds[0])
+  }
+  return http.post('/ai/classify', payload)
 }

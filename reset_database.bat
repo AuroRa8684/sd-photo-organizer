@@ -7,16 +7,6 @@ echo.
 echo 警告: 此操作将删除所有照片数据和缩略图！
 echo.
 
-REM 检查后端是否在运行
-netstat -ano | findstr ":8000" >nul 2>&1
-if %errorlevel%==0 (
-    echo [!] 检测到后端服务正在运行 (端口8000)
-    echo [!] 请先关闭后端服务窗口，然后重新运行此脚本
-    echo.
-    pause
-    exit /b 1
-)
-
 set /p confirm=确定继续吗？(Y/N): 
 if /i "%confirm%"=="Y" (
     echo.
