@@ -391,9 +391,13 @@ const handleResize = () => {
   cameraChart?.resize()
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('resize', handleResize)
-  loadHistoryList()
+  await loadHistoryList()
+  // 自动加载最新的总结记录
+  if (historyList.value.length > 0) {
+    loadHistoryDetail(historyList.value[0].id)
+  }
 })
 
 onUnmounted(() => {

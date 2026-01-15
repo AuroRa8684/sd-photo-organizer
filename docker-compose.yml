@@ -5,12 +5,12 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root123456
-      MYSQL_DATABASE: sd_photo
-      MYSQL_USER: sd_user
-      MYSQL_PASSWORD: sd_pass
+      MYSQL_DATABASE: photoapp
+      MYSQL_USER: photoapp
+      MYSQL_PASSWORD: photoapp_pwd
     ports:
       - "3306:3306"
-    command: ["mysqld", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    command: [ "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
     volumes:
       - mysql_data:/var/lib/mysql
 
