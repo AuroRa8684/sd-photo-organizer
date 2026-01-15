@@ -93,6 +93,9 @@ class ScannerService:
                     "error": str(e)
                 })
         
+        # 提交所有更改到数据库
+        self.db.commit()
+        
         results["message"] = f"扫描完成：发现{results['total_found']}张照片，新导入{results['new_imported']}张，重复{results['duplicates']}张"
         
         return results

@@ -58,32 +58,26 @@
         <el-form-item label="SD卡目录">
           <el-input
             v-model="form.sdPath"
-            placeholder="输入SD卡或照片目录路径，例如: D:\DCIM\100MSDCF"
+            placeholder="点击右侧按钮选择SD卡或照片目录"
             clearable
           >
             <template #append>
-              <el-button @click="showSdPathPicker = true">
-                <el-icon><FolderOpened /></el-icon>
-              </el-button>
-              <el-button @click="previewPath" :loading="previewing">
-                预览
+              <el-button @click="showSdPathPicker = true" type="primary">
+                <el-icon><FolderOpened /></el-icon> 选择目录
               </el-button>
             </template>
           </el-input>
-          <div class="form-tip" v-if="preview">
-            发现 {{ preview.jpg_count }} 张JPG照片，约 {{ preview.estimated_raw_count }} 张有配对的RAW
-          </div>
         </el-form-item>
 
         <el-form-item label="本地图库目录">
           <el-input
             v-model="form.libraryRoot"
-            placeholder="输入本地图库根目录，例如: D:\PhotoLibrary"
+            placeholder="点击右侧按钮选择本地图库目录"
             clearable
           >
             <template #append>
-              <el-button @click="showLibraryPicker = true">
-                <el-icon><FolderOpened /></el-icon>
+              <el-button @click="showLibraryPicker = true" type="primary">
+                <el-icon><FolderOpened /></el-icon> 选择目录
               </el-button>
             </template>
           </el-input>
@@ -121,7 +115,18 @@
           :disabled="!form.sdPath"
         >
           <el-icon><Search /></el-icon>
-          {{ scanning ? '扫描中...' : '扫描照片' }}
+          {{ scanning ? '扫描中...' : '① 扫描照片' }}
+        </el-button>
+        
+        <el-button
+          type="warning"
+          size="large"
+          @click="handleAIClassify"
+          :loading="classifying"
+          :disabled="!scanResult || scanResult.new_imported === 0"
+        >
+          <el-icon><MagicStick /></el-icon>
+          {{ classifying ? '分类中...' : '② AI智能分类' }}
         </el-button>
         
         <el-button
@@ -130,10 +135,31 @@
           @click="handleImport"
           :loading="importing"
           :disabled="!form.libraryRoot || !scanResult"
+          :title="getImportButtonTip()"
         >
           <el-icon><FolderOpened /></el-icon>
-          {{ importing ? '整理中...' : '整理到图库' }}
+          {{ importing ? '整理中...' : '③ 整理到图库' }}
         </el-button>
+      </div>
+      
+      <!-- 操作提示 -->
+      <div v-if="!scanResult" class="action-tip">
+        <el-alert type="info" :closable="false" show-icon>
+          <template #title>
+            <span v-if="!form.sdPath">第一步：请先选择SD卡目录</span>
+            <span v-else>第二步：点击"扫描照片"读取照片信息</span>
+          </template>
+        </el-alert>
+      </div>
+      <div v-else-if="!classifyResult && scanResult.new_imported > 0" class="action-tip">
+        <el-alert type="warning" :closable="false" show-icon>
+          <template #title>
+            第三步（推荐）：点击"AI智能分类"自动识别照片类别，整理时将按类别分目录存放
+          </template>
+        </el-alert>
+      </div>
+      <div v-else-if="!form.libraryRoot" class="action-tip">
+        <el-alert type="info" :closable="false" show-icon title="第四步：请选择本地图库目录，然后点击整理到图库" />
       </div>
       
       <!-- 扫描进度提示 -->
@@ -185,6 +211,28 @@
       </div>
     </div>
 
+    <!-- AI分类结果 -->
+    <div class="content-card" v-if="classifyResult">
+      <h3>🤖 AI分类结果</h3>
+      
+      <el-descriptions :column="3" border>
+        <el-descriptions-item label="已分类">
+          <el-tag type="success">{{ classifyResult.classified || 0 }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="跳过">
+          <el-tag type="info">{{ classifyResult.skipped || 0 }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="失败">
+          <el-tag type="danger" v-if="classifyResult.failed">{{ classifyResult.failed }}</el-tag>
+          <span v-else>0</span>
+        </el-descriptions-item>
+      </el-descriptions>
+
+      <div class="scan-message" v-if="classifyResult.message">
+        <el-alert :title="classifyResult.message" :type="classifyResult.success === false ? 'warning' : 'success'" show-icon />
+      </div>
+    </div>
+
     <!-- 整理结果 -->
     <div class="content-card" v-if="importResult">
       <h3>✅ 整理结果</h3>
@@ -215,8 +263,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Search, FolderOpened } from '@element-plus/icons-vue'
+import { Search, FolderOpened, MagicStick } from '@element-plus/icons-vue'
 import { scanDirectory, previewDirectory, importToLibrary, getQuickStats } from '@/api'
+import { classifyPhotos } from '@/api/ai'
 import FolderPicker from '@/components/FolderPicker.vue'
 
 // 表单数据
@@ -233,13 +282,22 @@ const showLibraryPicker = ref(false)
 const stats = ref({})
 const preview = ref(null)
 const scanResult = ref(null)
+const classifyResult = ref(null)
 const importResult = ref(null)
 const previewing = ref(false)
 const scanning = ref(false)
+const classifying = ref(false)
 const importing = ref(false)
 
 // 进度模拟
 const scanProgress = ref(0)
+
+// 获取整理按钮提示
+const getImportButtonTip = () => {
+  if (!scanResult.value) return '请先点击"扫描照片"'
+  if (!form.libraryRoot) return '请先选择本地图库目录'
+  return '点击整理照片到图库'
+}
 const importProgress = ref(0)
 let progressTimer = null
 
@@ -306,6 +364,7 @@ const handleScan = async () => {
   try {
     const res = await scanDirectory(form.sdPath)
     scanResult.value = res.data
+    classifyResult.value = null  // 重置分类结果
     ElMessage.success(res.message || '扫描完成')
     loadStats()
   } catch (error) {
@@ -313,6 +372,37 @@ const handleScan = async () => {
   } finally {
     stopProgressSimulation('scan')
     scanning.value = false
+  }
+}
+
+// AI智能分类
+const handleAIClassify = async () => {
+  if (!scanResult.value || !scanResult.value.photos?.length) {
+    ElMessage.warning('请先扫描照片')
+    return
+  }
+  
+  classifying.value = true
+  classifyResult.value = null
+  
+  try {
+    // 获取所有照片ID进行分类
+    const photoIds = scanResult.value.photos.map(p => p.id)
+    const res = await classifyPhotos(photoIds, 4, true)
+    classifyResult.value = res.data
+    
+    if (res.data.success === false) {
+      ElMessage.warning(res.data.message || 'AI分类需要配置API Key')
+    } else {
+      ElMessage.success(res.message || `分类完成：${res.data.classified || 0}张照片`)
+    }
+    loadStats()
+  } catch (error) {
+    console.error('AI分类失败:', error)
+    const msg = error.response?.data?.detail || error.response?.data?.message || error.message || '未知错误'
+    ElMessage.error(`分类失败: ${msg}`)
+  } finally {
+    classifying.value = false
   }
 }
 
@@ -335,7 +425,9 @@ const handleImport = async () => {
     ElMessage.success(res.message || '整理完成')
     loadStats()
   } catch (error) {
-    ElMessage.error('整理失败，请检查目录权限')
+    console.error('整理失败:', error)
+    const msg = error.response?.data?.detail || error.response?.data?.message || error.message || '未知错误'
+    ElMessage.error(`整理失败: ${msg}`)
   } finally {
     stopProgressSimulation('import')
     importing.value = false
