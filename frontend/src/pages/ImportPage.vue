@@ -411,26 +411,35 @@ const handleAIClassify = async () => {
   try {
     // 获取所有照片ID进行分类
     const photoIds = scanResult.value.photos.map(p => p.id)
+    console.log('Sending photoIds:', photoIds.length)
     const res = await classifyPhotos(photoIds, 4, true)
-    classifyResult.value = res.data || res
+    console.log('Classify response:', res)
     
+    // res 已经是后端返回的 {data, message, error} 结构
+    // res.data 是实际的分类结果 {success, classified, details, ...}
     const data = res.data || res
+    classifyResult.value = data
+    
     if (data.success === false) {
       ElMessage.warning(data.message || 'AI分类需要配置API Key')
     } else {
-      ElMessage.success(res.message || data.message || `分类完成：${data.classified || 0}张照片`)
+      ElMessage.success(data.message || `分类完成：${data.classified || 0}张照片`)
     }
     loadStats()
   } catch (error) {
     console.error('AI分类失败:', error)
-    let msg = '未知错误'
+    console.error('Error type:', typeof error)
+    console.error('Error.message type:', typeof error?.message)
+    console.error('Error.message:', error?.message)
+    
+    let msg = '请检查网络连接和AI配置'
     if (typeof error === 'string') {
       msg = error
-    } else if (error.response?.data?.detail) {
+    } else if (error?.response?.data?.detail) {
       msg = error.response.data.detail
-    } else if (error.response?.data?.message) {
-      msg = error.response.data.message
-    } else if (typeof error.message === 'string') {
+    } else if (error?.response?.data?.message) {
+      msg = error.response.data.message  
+    } else if (error?.message && typeof error.message === 'string') {
       msg = error.message
     }
     ElMessage.error(`分类失败: ${msg}`)
