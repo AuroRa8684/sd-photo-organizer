@@ -6,7 +6,7 @@
       <!-- 新手引导提示 -->
       <el-alert
         v-if="stats.total_photos === 0"
-        title="👋 欢迎使用！开始你的第一次照片导入"
+        title="👋 欢迎使用！只需三步完成照片导入"
         type="info"
         :closable="true"
         show-icon
@@ -14,9 +14,9 @@
       >
         <template #default>
           <ol style="margin: 8px 0 0; padding-left: 20px; line-height: 2">
-            <li>输入或选择SD卡/照片目录路径</li>
-            <li>点击"扫描照片"读取并生成缩略图</li>
-            <li>设置本地图库目录，点击"整理到图库"完成导入</li>
+            <li>选择SD卡目录 → 点击「扫描照片」</li>
+            <li>（可选）点击「AI智能分类」自动识别照片类别</li>
+            <li>选择图库目录 → 点击「整理到图库」</li>
           </ol>
         </template>
       </el-alert>
@@ -261,17 +261,29 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, FolderOpened, MagicStick } from '@element-plus/icons-vue'
 import { scanDirectory, previewDirectory, importToLibrary, getQuickStats } from '@/api'
 import { classifyPhotos } from '@/api/ai'
 import FolderPicker from '@/components/FolderPicker.vue'
 
+// 常量：localStorage键名
+const STORAGE_KEY_LIBRARY = 'sd_organizer_library_root'
+const STORAGE_KEY_SD = 'sd_organizer_sd_path'
+
 // 表单数据
 const form = reactive({
-  sdPath: '',
-  libraryRoot: ''
+  sdPath: localStorage.getItem(STORAGE_KEY_SD) || '',
+  libraryRoot: localStorage.getItem(STORAGE_KEY_LIBRARY) || ''
+})
+
+// 监听路径变化，自动保存到localStorage
+watch(() => form.libraryRoot, (val) => {
+  if (val) localStorage.setItem(STORAGE_KEY_LIBRARY, val)
+})
+watch(() => form.sdPath, (val) => {
+  if (val) localStorage.setItem(STORAGE_KEY_SD, val)
 })
 
 // 文件夹选择器

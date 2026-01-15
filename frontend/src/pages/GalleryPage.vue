@@ -37,26 +37,23 @@
       </div>
       
       <div class="filter-item">
-        <el-button type="primary" @click="loadPhotos">
-          <el-icon><Search /></el-icon>
-          搜索
-        </el-button>
-        <el-button @click="resetFilters">重置</el-button>
+        <el-button @click="resetFilters">重置筛选</el-button>
       </div>
       
       <div class="filter-item" style="margin-left: auto;">
         <el-dropdown @command="handleBatchAction" :disabled="selectedIds.length === 0">
           <el-button :disabled="selectedIds.length === 0">
-            批量操作 <el-icon><ArrowDown /></el-icon>
+            批量操作 ({{ selectedIds.length }}) <el-icon><ArrowDown /></el-icon>
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="classify">AI分类</el-dropdown-item>
-              <el-dropdown-item command="classifySkip">AI分类(跳过已分类)</el-dropdown-item>
+              <el-dropdown-item command="classifySkip">
+                <el-icon><MagicStick /></el-icon> AI智能分类
+              </el-dropdown-item>
               <el-dropdown-item divided command="select">设为精选</el-dropdown-item>
               <el-dropdown-item command="unselect">取消精选</el-dropdown-item>
               <el-dropdown-item divided command="delete" style="color: #f56c6c">
-                从照片墙移除
+                删除照片
               </el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -212,9 +209,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Download, Loading, Picture, Star, ArrowDown, FolderOpened } from '@element-plus/icons-vue'
+import { Search, Download, Loading, Picture, Star, ArrowDown, FolderOpened, MagicStick } from '@element-plus/icons-vue'
 import { getPhotos, updatePhoto, getCategories, classifyPhotos, exportSelected, batchDeletePhotos, batchUpdatePhotos } from '@/api'
 import PhotoPreview from '@/components/PhotoPreview.vue'
 import FolderPicker from '@/components/FolderPicker.vue'
@@ -251,11 +248,29 @@ const filters = reactive({
   isSelected: null
 })
 
+// 监听筛选条件变化，自动搜索（防抖）
+let filterDebounce = null
+watch(filters, () => {
+  clearTimeout(filterDebounce)
+  filterDebounce = setTimeout(() => {
+    currentPage.value = 1
+    loadPhotos()
+  }, 300)
+}, { deep: true })
+
+// 常量：localStorage键名
+const STORAGE_KEY_EXPORT = 'sd_organizer_export_dir'
+
 // 导出表单
 const exportForm = reactive({
-  exportDir: '',
+  exportDir: localStorage.getItem(STORAGE_KEY_EXPORT) || '',
   includeRaw: true,
   asZip: false
+})
+
+// 监听导出目录变化，自动保存
+watch(() => exportForm.exportDir, (val) => {
+  if (val) localStorage.setItem(STORAGE_KEY_EXPORT, val)
 })
 
 // 计算精选数量
