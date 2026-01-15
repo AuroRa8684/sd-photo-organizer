@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     :title="photo?.file_name || '照片预览'"
-    width="90%"
+    width="95%"
     :close-on-click-modal="true"
     class="photo-preview-dialog"
     destroy-on-close
@@ -11,7 +11,7 @@
   >
     <div class="preview-container">
       <!-- 图片区域 -->
-      <div class="preview-image">
+      <div class="preview-image" @click="sidebarCollapsed = !sidebarCollapsed">
         <img
           :src="imageUrl"
           :alt="photo?.file_name"
@@ -29,9 +29,13 @@
         </div>
       </div>
 
-      <!-- 信息侧边栏 -->
-      <div class="preview-sidebar">
-        <h3>📷 照片信息</h3>
+      <!-- 信息侧边栏（可折叠） -->
+      <div class="preview-sidebar" :class="{ collapsed: sidebarCollapsed }">
+        <div class="sidebar-toggle" @click="sidebarCollapsed = !sidebarCollapsed">
+          <el-icon><ArrowRight /></el-icon>
+        </div>
+        <div class="sidebar-content" v-show="!sidebarCollapsed">
+          <h3>📷 照片信息</h3>
         
         <el-descriptions :column="1" border size="small">
           <el-descriptions-item label="文件名">
@@ -92,6 +96,7 @@
             {{ photo?.is_selected ? '取消精选' : '加入精选' }}
           </el-button>
         </div>
+        </div>
       </div>
     </div>
 
@@ -143,6 +148,7 @@ const visible = computed({
 
 const imageLoaded = ref(false)
 const imageError = ref(false)
+const sidebarCollapsed = ref(false) // 侧边栏折叠状态
 
 // 图片加载失败处理
 const handleImageError = () => {
@@ -150,10 +156,10 @@ const handleImageError = () => {
   imageLoaded.value = false
 }
 
-// 获取图片URL（使用缩略图，因为原图可能不在服务器上）
+// 获取原图URL（使用原图接口，显示高清大图）
 const imageUrl = computed(() => {
-  if (!props.photo?.thumb_url) return ''
-  return API_BASE + props.photo.thumb_url
+  if (!props.photo?.id) return ''
+  return `${API_BASE}/photos/${props.photo.id}/full`
 })
 
 // 监听photo变化重置加载状态
@@ -211,8 +217,8 @@ watch(visible, (val) => {
 <style lang="scss" scoped>
 .preview-container {
   display: flex;
-  gap: 16px;
-  height: 85vh;
+  gap: 0;
+  height: 88vh;
 }
 
 .preview-image {
@@ -220,17 +226,36 @@ watch(visible, (val) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #1a1a1a;
-  border-radius: 8px;
+  background: #000;
+  border-radius: 4px;
   overflow: hidden;
-  min-width: 0; // 防止 flex 子元素撑开
+  min-width: 0;
+  cursor: pointer;
+  position: relative;
   
   img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    width: auto;
-    height: auto;
+  }
+  
+  &::after {
+    content: '点击图片切换侧边栏';
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.6);
+    color: #aaa;
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  
+  &:hover::after {
+    opacity: 1;
   }
   
   .loading-placeholder {
@@ -248,6 +273,38 @@ watch(visible, (val) => {
   width: 220px;
   flex-shrink: 0;
   overflow-y: auto;
+  position: relative;
+  transition: width 0.3s, padding 0.3s;
+  padding-left: 16px;
+  
+  &.collapsed {
+    width: 0;
+    padding-left: 0;
+    overflow: hidden;
+  }
+  
+  .sidebar-toggle {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #f0f0f0;
+    border-radius: 0 4px 4px 0;
+    padding: 12px 4px;
+    cursor: pointer;
+    
+    &:hover {
+      background: #e0e0e0;
+    }
+  }
+  
+  .sidebar-content {
+    padding-left: 12px;
+  }
+  
+  .sidebar-content {
+    padding-left: 12px;
+  }
   
   h3 {
     font-size: 14px;

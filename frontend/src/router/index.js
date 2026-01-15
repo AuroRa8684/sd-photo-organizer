@@ -31,7 +31,7 @@ const router = createRouter({
 
 // 路由守卫 - 更新页面标题
 router.beforeEach((to, from, next) => {
-  document.title = `${to.meta.title || 'SD Photo Organizer'} - 照片整理工具`
+  document.title = `${to.meta.title || 'PhotoFlow'} - 智能照片整理与拍摄`
   next()
 })
 

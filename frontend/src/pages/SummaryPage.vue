@@ -21,13 +21,15 @@
               style="width: 100%; margin-bottom: 12px"
               size="small"
             />
-            <el-button type="primary" @click="handleGenerate" :loading="loading" style="width: 100%">
-              <el-icon><DataAnalysis /></el-icon>
-              生成总结
-            </el-button>
-            <el-button @click="handleGenerateAll" :loading="loading" style="width: 100%; margin-top: 8px">
-              全部数据
-            </el-button>
+            <div class="btn-row">
+              <el-button type="primary" @click="handleGenerate" :loading="loading">
+                <el-icon><DataAnalysis /></el-icon>
+                生成总结
+              </el-button>
+              <el-button @click="handleGenerateAll" :loading="loading">
+                全部数据
+              </el-button>
+            </div>
           </div>
         </div>
 
@@ -164,6 +166,7 @@ import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { DataAnalysis, Loading, Delete } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
+import { marked } from 'marked'
 import { generateSummary, getSummaryHistory, getSummaryHistoryDetail, deleteSummaryHistory } from '@/api'
 
 // 数据
@@ -374,13 +377,10 @@ const renderCharts = () => {
   }
 }
 
-// 格式化AI总结（将换行转为HTML）
+// 格式化AI总结（使用marked渲染Markdown）
 const formatSummary = (text) => {
   if (!text) return ''
-  return text
-    .replace(/\n/g, '<br>')
-    .replace(/- /g, '• ')
-    .replace(/(\d+\.)/, '<strong>$1</strong>')
+  return marked(text)
 }
 
 // 窗口resize处理
@@ -440,13 +440,61 @@ onUnmounted(() => {
 .ai-summary-content {
   background: #f9fafc;
   border-radius: 8px;
-  padding: 20px;
+  padding: 20px 24px;
   line-height: 1.8;
   font-size: 15px;
   color: #303133;
   
-  :deep(br) {
-    margin-bottom: 8px;
+  // Markdown渲染样式
+  :deep(h2) {
+    font-size: 18px;
+    color: #303133;
+    margin: 20px 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #ebeef5;
+    
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+  
+  :deep(h3) {
+    font-size: 16px;
+    color: #409EFF;
+    margin: 16px 0 8px 0;
+  }
+  
+  :deep(p) {
+    margin: 8px 0;
+    line-height: 1.8;
+  }
+  
+  :deep(ul), :deep(ol) {
+    padding-left: 24px;
+    margin: 8px 0;
+    
+    li {
+      margin: 6px 0;
+      line-height: 1.7;
+    }
+  }
+  
+  :deep(strong) {
+    color: #E6A23C;
+  }
+  
+  :deep(em) {
+    color: #67C23A;
+    font-style: normal;
+  }
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+  
+  .el-button {
+    flex: 1;
   }
 }
 

@@ -7,6 +7,7 @@ from typing import Optional
 from datetime import datetime
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from ...db import get_db, PhotosRepository
@@ -308,3 +309,38 @@ async def browse_directory(path: str = Query("", description="目录路径")):
         )
     except Exception as e:
         return ApiResponse(data=None, error=str(e), message="")
+
+
+@router.get("/{photo_id}/full", summary="获取照片原图")
+async def get_full_image(photo_id: int, db: Session = Depends(get_db)):
+    """
+    返回照片原图文件
+    优先使用 library_path（已整理到本地的），否则使用 file_path（SD卡上的）
+    """
+    repo = PhotosRepository(db)
+    photo = repo.get_by_id(photo_id)
+    
+    if not photo:
+        raise HTTPException(status_code=404, detail="照片不存在")
+    
+    # 优先使用整理后的路径
+    image_path = None
+    if photo.library_path:
+        path = Path(photo.library_path)
+        if path.exists():
+            image_path = path
+    
+    # 回退到原始路径
+    if not image_path and photo.file_path:
+        path = Path(photo.file_path)
+        if path.exists():
+            image_path = path
+    
+    if not image_path:
+        raise HTTPException(status_code=404, detail="图片文件不存在")
+    
+    return FileResponse(
+        image_path,
+        media_type="image/jpeg",
+        filename=photo.file_name
+    )

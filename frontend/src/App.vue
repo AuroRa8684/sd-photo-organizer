@@ -5,7 +5,7 @@
       <el-aside width="200px" class="app-aside">
         <div class="logo">
           <el-icon size="24"><Camera /></el-icon>
-          <span>Photo Organizer</span>
+          <span>PhotoFlow</span>
         </div>
         <el-menu
           :default-active="activeMenu"
