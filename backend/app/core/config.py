@@ -3,8 +3,10 @@
 从环境变量/.env文件读取配置
 """
 from pathlib import Path
+from pydantic import Field  # 新增：用于配置验证
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from urllib.parse import quote_plus  # 新增：处理MySQL密码特殊字符
 
 
 class Settings(BaseSettings):
@@ -18,7 +20,7 @@ class Settings(BaseSettings):
     # 数据库配置
     # 使用 sqlite 则自动使用SQLite（开发方便，无需安装MySQL）
     # 使用 mysql 则连接MySQL数据库
-    db_type: str = "sqlite"
+    db_type: str = Field(default="sqlite", pattern="^(sqlite|mysql)$")  # 核心修改：限制仅允许sqlite/mysql
     
     # MySQL配置（当db_type=mysql时使用）
     mysql_host: str = "127.0.0.1"
@@ -45,14 +47,21 @@ class Settings(BaseSettings):
             db_path.parent.mkdir(parents=True, exist_ok=True)
             return f"sqlite:///{db_path}"
         else:
-            # 使用MySQL
-            return f"mysql+pymysql://{self.mysql_user}:{self.mysql_password}@{self.mysql_host}:{self.mysql_port}/{self.mysql_db}?charset=utf8mb4"
+            # 核心修改：对用户名/密码URL编码，处理特殊字符；新增pool_pre_ping检测连接有效性
+            encoded_user = quote_plus(self.mysql_user)
+            encoded_pwd = quote_plus(self.mysql_password)
+            return (
+                f"mysql+pymysql://{encoded_user}:{encoded_pwd}@{self.mysql_host}:{self.mysql_port}/{self.mysql_db}"
+                "?charset=utf8mb4&pool_pre_ping=True"
+            )
     
     @property
     def thumbs_path(self) -> Path:
         """获取缩略图存储的绝对路径"""
         backend_dir = Path(__file__).parent.parent.parent
-        return backend_dir / self.thumbs_dir
+        thumbs_path = backend_dir / self.thumbs_dir
+        thumbs_path.mkdir(parents=True, exist_ok=True)  # 核心修改：自动创建缩略图目录
+        return thumbs_path
     
     class Config:
         env_file = ".env"
