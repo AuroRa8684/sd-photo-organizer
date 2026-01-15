@@ -423,7 +423,16 @@ const handleAIClassify = async () => {
     loadStats()
   } catch (error) {
     console.error('AI分类失败:', error)
-    const msg = error.response?.data?.detail || error.response?.data?.message || error.message || '未知错误'
+    let msg = '未知错误'
+    if (typeof error === 'string') {
+      msg = error
+    } else if (error.response?.data?.detail) {
+      msg = error.response.data.detail
+    } else if (error.response?.data?.message) {
+      msg = error.response.data.message
+    } else if (typeof error.message === 'string') {
+      msg = error.message
+    }
     ElMessage.error(`分类失败: ${msg}`)
   } finally {
     stopProgressSimulation('classify')

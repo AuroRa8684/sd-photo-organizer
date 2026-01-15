@@ -441,7 +441,18 @@ const handleAIClassify = async (skipClassified = false) => {
     selectedIds.value = []
     selectAll.value = false
   } catch (error) {
-    ElMessage.error('AI分类失败: ' + error.message)
+    console.error('AI分类失败:', error)
+    let msg = '未知错误'
+    if (typeof error === 'string') {
+      msg = error
+    } else if (error.response?.data?.detail) {
+      msg = error.response.data.detail
+    } else if (error.response?.data?.message) {
+      msg = error.response.data.message
+    } else if (typeof error.message === 'string') {
+      msg = error.message
+    }
+    ElMessage.error('AI分类失败: ' + msg)
   } finally {
     classifying.value = false
     showClassifyProgress.value = false

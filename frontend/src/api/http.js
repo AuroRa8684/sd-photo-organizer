@@ -32,7 +32,8 @@ http.interceptors.response.use(
     const data = response.data
     
     // 处理统一响应格式
-    if (data.error) {
+    // 注意：error 字段可能是字符串或数组，只有非空字符串才视为错误
+    if (data.error && typeof data.error === 'string') {
       ElMessage.error(data.message || data.error)
       return Promise.reject(new Error(data.error))
     }
