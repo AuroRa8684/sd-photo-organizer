@@ -22,6 +22,9 @@ async def classify_photos(request: ClassifyRequest, db: Session = Depends(get_db
     - 可选跳过已分类照片
     """
     try:
+        if not request.photo_ids:
+            return ApiResponse(data=None, message="请先选择要分类的照片", error="未选择照片")
+        
         ai_service = AIService(db)
         result = ai_service.classify_photos(
             photo_ids=request.photo_ids,
@@ -30,7 +33,13 @@ async def classify_photos(request: ClassifyRequest, db: Session = Depends(get_db
         )
         return ApiResponse(data=result, message=result.get("message", "分类完成"))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = str(e)
+        if "API" in error_msg or "key" in error_msg.lower():
+            return ApiResponse(data=None, message="AI服务配置错误，请检查API密钥", error=error_msg)
+        elif "timeout" in error_msg.lower():
+            return ApiResponse(data=None, message="AI服务响应超时，请稍后重试", error=error_msg)
+        else:
+            raise HTTPException(status_code=500, detail=f"AI分类失败：{error_msg}")
 
 
 @router.get("/categories", response_model=ApiResponse, summary="获取可用类别列表")

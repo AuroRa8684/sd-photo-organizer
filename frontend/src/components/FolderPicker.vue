@@ -21,17 +21,18 @@
       </el-breadcrumb>
     </div>
 
-    <!-- 目录列表 -->
-    <div class="folder-list" v-loading="loading">
-      <!-- 返回上级 -->
-      <div
-        v-if="currentData?.parent"
-        class="folder-item parent"
-        @dblclick="navigateTo(currentData.parent)"
-      >
-        <el-icon><Back /></el-icon>
-        <span>返回上级目录</span>
-      </div>
+      <!-- 目录列表 -->
+      <div class="folder-list" v-loading="loading" element-loading-text="加载目录中...">
+        <!-- 返回上级 -->
+        <div
+          v-if="currentData?.parent"
+          class="folder-item parent"
+          @click="navigateTo(currentData.parent)"
+          @dblclick="navigateTo(currentData.parent)"
+        >
+          <el-icon><Back /></el-icon>
+          <span>.. 返回上级目录</span>
+        </div>
 
       <!-- 驱动器列表 -->
       <div
@@ -77,7 +78,13 @@
     <div class="selected-display">
       <el-input v-model="selectedPath" placeholder="选中的路径" readonly>
         <template #prepend>已选择</template>
+        <template #append>
+          <el-button @click="refreshCurrent" :loading="loading">
+            刷新
+          </el-button>
+        </template>
       </el-input>
+      <div class="path-hint">单击选择，双击进入目录</div>
     </div>
 
     <template #footer>
@@ -208,6 +215,15 @@ const confirmSelect = () => {
   emit('select', selectedPath.value)
   visible.value = false
 }
+
+// 刷新当前目录
+const refreshCurrent = () => {
+  if (currentPath.value) {
+    navigateTo(currentPath.value)
+  } else {
+    loadDrives()
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -293,5 +309,12 @@ const confirmSelect = () => {
 
 .selected-display {
   margin-top: 16px;
+  
+  .path-hint {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 8px;
+    text-align: center;
+  }
 }
 </style>

@@ -135,6 +135,14 @@
             <el-icon><DataAnalysis /></el-icon>
             <p>点击左侧"生成总结"按钮创建新的拍摄总结</p>
             <p class="sub">或从历史记录中选择查看</p>
+            <div class="quick-tips">
+              <h4>📌 快速指南</h4>
+              <ul>
+                <li>选择日期范围后点击"生成总结"</li>
+                <li>点击"全部数据"可分析所有已导入照片</li>
+                <li>生成的总结会自动保存到历史记录</li>
+              </ul>
+            </div>
           </div>
         </div>
 
@@ -449,6 +457,31 @@ onUnmounted(() => {
     font-size: 12px;
     color: #c0c4cc;
     margin-top: 8px;
+  }
+  
+  .quick-tips {
+    margin-top: 24px;
+    padding: 16px 24px;
+    background: #f5f7fa;
+    border-radius: 8px;
+    text-align: left;
+    
+    h4 {
+      font-size: 14px;
+      color: #606266;
+      margin-bottom: 12px;
+    }
+    
+    ul {
+      padding-left: 20px;
+      margin: 0;
+      
+      li {
+        font-size: 13px;
+        color: #909399;
+        line-height: 2;
+      }
+    }
   }
 }
 

@@ -37,10 +37,16 @@ class ScannerService:
         sd_root = Path(sd_path)
         
         if not sd_root.exists():
-            raise ValueError(f"目录不存在: {sd_path}")
+            raise ValueError(f"目录不存在，请检查路径是否正确: {sd_path}")
         
         if not sd_root.is_dir():
-            raise ValueError(f"路径不是目录: {sd_path}")
+            raise ValueError(f"指定路径不是文件夹: {sd_path}")
+        
+        # 检查是否有读取权限
+        try:
+            list(sd_root.iterdir())
+        except PermissionError:
+            raise ValueError(f"没有权限访问该目录，请以管理员身份运行或检查权限: {sd_path}")
         
         # 查找所有JPG文件
         jpg_files = self._find_all_jpg(sd_root)
@@ -52,7 +58,7 @@ class ScannerService:
                 "duplicates": 0,
                 "with_raw": 0,
                 "photos": [],
-                "message": "未找到任何JPG照片"
+                "message": "该目录下未找到任何JPG照片，请确认路径正确"
             }
         
         # 处理每张照片

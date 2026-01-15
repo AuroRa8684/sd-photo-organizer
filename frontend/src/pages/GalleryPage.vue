@@ -75,14 +75,23 @@
         <el-checkbox v-model="selectAll" @change="handleSelectAll">全选当前页</el-checkbox>
       </div>
       
-      <div v-if="loading" class="loading-overlay">
-        <el-icon class="is-loading" :size="48"><Loading /></el-icon>
-        <p>加载中...</p>
+      <div v-if="loading" class="skeleton-grid">
+        <div v-for="i in 12" :key="i" class="skeleton-card">
+          <div class="skeleton-image"></div>
+          <div class="skeleton-text">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line"></div>
+          </div>
+        </div>
       </div>
       
       <div v-else-if="photos.length === 0" class="empty-state">
         <el-icon><Picture /></el-icon>
-        <p>暂无照片，请先导入</p>
+        <p>暂无照片</p>
+        <p class="empty-sub">点击左侧"导入照片"开始扫描SD卡或照片目录</p>
+        <el-button type="primary" @click="$router.push('/')" style="margin-top: 16px">
+          去导入照片
+        </el-button>
       </div>
       
       <div v-else class="photo-grid">
@@ -191,11 +200,12 @@
     />
 
     <!-- AI分类进度 -->
-    <el-dialog v-model="showClassifyProgress" title="AI分类中" width="400px" :close-on-click-modal="false">
+    <el-dialog v-model="showClassifyProgress" title="AI分类中" width="450px" :close-on-click-modal="false">
       <div class="classify-progress">
         <el-icon class="is-loading" :size="48"><Loading /></el-icon>
         <p>正在对 {{ classifyTotal }} 张照片进行AI分类...</p>
-        <p class="tip">这可能需要一些时间，请耐心等待</p>
+        <p class="tip">每张照片约需 2-5 秒，请耐心等待</p>
+        <p class="tip">预计耗时：约 {{ Math.ceil(classifyTotal * 3 / 60) }} 分钟</p>
       </div>
     </el-dialog>
   </div>
@@ -611,6 +621,13 @@ onMounted(() => {
   .tip {
     font-size: 12px;
     color: #909399;
+    margin-top: 8px;
   }
+}
+
+.empty-sub {
+  font-size: 13px;
+  color: #c0c4cc;
+  margin-top: 8px;
 }
 </style>

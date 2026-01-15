@@ -3,6 +3,23 @@
     <div class="page-header">
       <h1>📸 导入照片</h1>
       <p>从SD卡或其他目录导入照片到本地图库</p>
+      <!-- 新手引导提示 -->
+      <el-alert
+        v-if="stats.total_photos === 0"
+        title="👋 欢迎使用！开始你的第一次照片导入"
+        type="info"
+        :closable="true"
+        show-icon
+        style="margin-top: 16px"
+      >
+        <template #default>
+          <ol style="margin: 8px 0 0; padding-left: 20px; line-height: 2">
+            <li>输入或选择SD卡/照片目录路径</li>
+            <li>点击"扫描照片"读取并生成缩略图</li>
+            <li>设置本地图库目录，点击"整理到图库"完成导入</li>
+          </ol>
+        </template>
+      </el-alert>
     </div>
 
     <!-- 快速统计 -->
@@ -104,7 +121,7 @@
           :disabled="!form.sdPath"
         >
           <el-icon><Search /></el-icon>
-          扫描照片
+          {{ scanning ? '扫描中...' : '扫描照片' }}
         </el-button>
         
         <el-button
@@ -115,8 +132,21 @@
           :disabled="!form.libraryRoot || !scanResult"
         >
           <el-icon><FolderOpened /></el-icon>
-          整理到图库
+          {{ importing ? '整理中...' : '整理到图库' }}
         </el-button>
+      </div>
+      
+      <!-- 扫描进度提示 -->
+      <div v-if="scanning" class="progress-hint">
+        <el-progress :percentage="scanProgress" :stroke-width="8" :show-text="false" />
+        <p>正在扫描照片并生成缩略图，请耐心等待...</p>
+        <p class="hint-small">大量照片可能需要几分钟</p>
+      </div>
+      
+      <!-- 整理进度提示 -->
+      <div v-if="importing" class="progress-hint">
+        <el-progress :percentage="importProgress" :stroke-width="8" status="success" :show-text="false" />
+        <p>正在整理照片到本地图库...</p>
       </div>
     </div>
 
@@ -208,6 +238,28 @@ const previewing = ref(false)
 const scanning = ref(false)
 const importing = ref(false)
 
+// 进度模拟
+const scanProgress = ref(0)
+const importProgress = ref(0)
+let progressTimer = null
+
+const startProgressSimulation = (type) => {
+  const progressRef = type === 'scan' ? scanProgress : importProgress
+  progressRef.value = 0
+  clearInterval(progressTimer)
+  progressTimer = setInterval(() => {
+    if (progressRef.value < 90) {
+      progressRef.value += Math.random() * 15
+    }
+  }, 500)
+}
+
+const stopProgressSimulation = (type) => {
+  const progressRef = type === 'scan' ? scanProgress : importProgress
+  clearInterval(progressTimer)
+  progressRef.value = 100
+}
+
 // 获取统计数据
 const loadStats = async () => {
   try {
@@ -249,15 +301,17 @@ const handleScan = async () => {
   
   scanning.value = true
   scanResult.value = null
+  startProgressSimulation('scan')
   
   try {
     const res = await scanDirectory(form.sdPath)
     scanResult.value = res.data
     ElMessage.success(res.message || '扫描完成')
-    loadStats() // 刷新统计
+    loadStats()
   } catch (error) {
-    ElMessage.error('扫描失败: ' + error.message)
+    ElMessage.error('扫描失败，请检查目录路径是否正确')
   } finally {
+    stopProgressSimulation('scan')
     scanning.value = false
   }
 }
@@ -271,6 +325,7 @@ const handleImport = async () => {
   
   importing.value = true
   importResult.value = null
+  startProgressSimulation('import')
   
   try {
     const res = await importToLibrary({
@@ -278,10 +333,11 @@ const handleImport = async () => {
     })
     importResult.value = res.data
     ElMessage.success(res.message || '整理完成')
-    loadStats() // 刷新统计
+    loadStats()
   } catch (error) {
-    ElMessage.error('整理失败: ' + error.message)
+    ElMessage.error('整理失败，请检查目录权限')
   } finally {
+    stopProgressSimulation('import')
     importing.value = false
   }
 }
@@ -342,5 +398,25 @@ h3 {
   margin-bottom: 16px;
   color: #303133;
   font-size: 16px;
+}
+
+.progress-hint {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  
+  p {
+    margin-top: 12px;
+    color: #606266;
+    font-size: 14px;
+    text-align: center;
+  }
+  
+  .hint-small {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 4px;
+  }
 }
 </style>

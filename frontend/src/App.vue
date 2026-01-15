@@ -5,7 +5,7 @@
       <el-aside width="200px" class="app-aside">
         <div class="logo">
           <el-icon size="24"><Camera /></el-icon>
-          <span>SD Photo Organizer</span>
+          <span>Photo Organizer</span>
         </div>
         <el-menu
           :default-active="activeMenu"
@@ -25,6 +25,12 @@
             <span>拍摄总结</span>
           </el-menu-item>
         </el-menu>
+        
+        <!-- 版本信息 -->
+        <div class="app-footer">
+          <div class="version">v1.0.0</div>
+          <a href="https://github.com" target="_blank" class="help-link">帮助文档</a>
+        </div>
       </el-aside>
       
       <!-- 主内容区 -->
@@ -54,6 +60,8 @@ const activeMenu = computed(() => {
 
 .app-aside {
   background: #304156;
+  display: flex;
+  flex-direction: column;
   
   .logo {
     height: 60px;
@@ -62,12 +70,13 @@ const activeMenu = computed(() => {
     justify-content: center;
     gap: 8px;
     color: #fff;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: bold;
     border-bottom: 1px solid #3d4a5e;
   }
   
   .app-menu {
+    flex: 1;
     border: none;
     background: transparent;
     
@@ -81,6 +90,28 @@ const activeMenu = computed(() => {
       &.is-active {
         color: #409EFF;
         background: #263445;
+      }
+    }
+  }
+  
+  .app-footer {
+    padding: 16px;
+    text-align: center;
+    border-top: 1px solid #3d4a5e;
+    
+    .version {
+      font-size: 11px;
+      color: #5a6270;
+      margin-bottom: 4px;
+    }
+    
+    .help-link {
+      font-size: 12px;
+      color: #909399;
+      text-decoration: none;
+      
+      &:hover {
+        color: #409EFF;
       }
     }
   }

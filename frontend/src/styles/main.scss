@@ -11,7 +11,7 @@
 html, body {
   width: 100%;
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft Yahei', sans-serif;
 }
 
 #app {
@@ -41,7 +41,12 @@ html, body {
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.2s;
+  
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  }
 }
 
 // 统计卡片
@@ -79,13 +84,18 @@ html, body {
   
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    
+    .photo-thumb {
+      transform: scale(1.02);
+    }
   }
   
   .photo-thumb {
     width: 100%;
     aspect-ratio: 1;
     object-fit: cover;
+    transition: transform 0.3s ease;
   }
   
   .photo-info {
@@ -123,11 +133,12 @@ html, body {
     position: absolute;
     bottom: 50px;
     left: 8px;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.65);
     color: #fff;
     font-size: 11px;
     padding: 2px 8px;
     border-radius: 4px;
+    backdrop-filter: blur(4px);
   }
 }
 
@@ -141,6 +152,7 @@ html, body {
   padding: 16px;
   background: #fff;
   border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   
   .filter-item {
     display: flex;
@@ -162,6 +174,11 @@ html, body {
   justify-content: center;
   padding: 60px;
   color: #909399;
+  
+  p {
+    margin-top: 16px;
+    font-size: 14px;
+  }
 }
 
 // 空状态
@@ -178,5 +195,75 @@ html, body {
   
   p {
     font-size: 16px;
+  }
+}
+
+// 骨架屏样式
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.skeleton-card {
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  
+  .skeleton-image {
+    width: 100%;
+    aspect-ratio: 1;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite;
+  }
+  
+  .skeleton-text {
+    padding: 10px;
+    
+    .skeleton-line {
+      height: 12px;
+      background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: skeleton-loading 1.5s infinite;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      
+      &:last-child {
+        width: 60%;
+        margin-bottom: 0;
+      }
+    }
+  }
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+// 响应式适配
+@media (max-width: 768px) {
+  .photo-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    
+    .filter-item {
+      width: 100%;
+    }
+  }
+  
+  .page-header h1 {
+    font-size: 20px;
   }
 }

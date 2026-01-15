@@ -33,7 +33,7 @@ http.interceptors.response.use(
     
     // 处理统一响应格式
     if (data.error) {
-      ElMessage.error(data.error)
+      ElMessage.error(data.message || data.error)
       return Promise.reject(new Error(data.error))
     }
     
@@ -42,23 +42,31 @@ http.interceptors.response.use(
   (error) => {
     // 网络错误
     if (!error.response) {
-      ElMessage.error('网络错误，请检查后端服务是否启动')
+      ElMessage.error('无法连接到服务器，请检查后端是否启动')
       return Promise.reject(error)
     }
     
     // HTTP错误
     const status = error.response.status
-    const message = error.response.data?.detail || error.message
+    const data = error.response.data
+    const message = data?.message || data?.detail || error.message
     
     switch (status) {
+      case 400:
+        ElMessage.error(message || '请求参数有误')
+        break
       case 404:
         ElMessage.error('请求的资源不存在')
         break
       case 500:
-        ElMessage.error(`服务器错误: ${message}`)
+        ElMessage.error(message || '服务器内部错误，请稍后重试')
+        break
+      case 502:
+      case 503:
+        ElMessage.error('服务器暂时不可用，请稍后重试')
         break
       default:
-        ElMessage.error(message || '请求失败')
+        ElMessage.error(message || '请求失败，请稍后重试')
     }
     
     return Promise.reject(error)

@@ -6,6 +6,8 @@
     :close-on-click-modal="true"
     class="photo-preview-dialog"
     destroy-on-close
+    @keydown.left="hasPrev && $emit('prev')"
+    @keydown.right="hasNext && $emit('next')"
   >
     <div class="preview-container">
       <!-- 图片区域 -->
@@ -14,10 +16,16 @@
           :src="imageUrl"
           :alt="photo?.file_name"
           @load="imageLoaded = true"
+          @error="handleImageError"
           v-show="imageLoaded"
         />
-        <div v-if="!imageLoaded" class="loading-placeholder">
+        <div v-if="!imageLoaded && !imageError" class="loading-placeholder">
           <el-icon class="is-loading" :size="48"><Loading /></el-icon>
+          <p>加载中...</p>
+        </div>
+        <div v-if="imageError" class="loading-placeholder">
+          <el-icon :size="48"><WarningFilled /></el-icon>
+          <p>图片加载失败</p>
         </div>
       </div>
 
@@ -91,20 +99,21 @@
     <template #footer>
       <div class="nav-footer">
         <el-button @click="$emit('prev')" :disabled="!hasPrev">
-          <el-icon><ArrowLeft /></el-icon> 上一张
+          <el-icon><ArrowLeft /></el-icon> 上一张 (←)
         </el-button>
         <span class="index-display">{{ currentIndex + 1 }} / {{ totalCount }}</span>
         <el-button @click="$emit('next')" :disabled="!hasNext">
-          下一张 <el-icon><ArrowRight /></el-icon>
+          下一张 (→) <el-icon><ArrowRight /></el-icon>
         </el-button>
       </div>
+      <div class="keyboard-hint">使用方向键 ← → 快速浏览，ESC 关闭</div>
     </template>
   </el-dialog>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Loading, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { Loading, ArrowLeft, ArrowRight, WarningFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { updatePhoto } from '@/api'
 
@@ -133,6 +142,13 @@ const visible = computed({
 })
 
 const imageLoaded = ref(false)
+const imageError = ref(false)
+
+// 图片加载失败处理
+const handleImageError = () => {
+  imageError.value = true
+  imageLoaded.value = false
+}
 
 // 获取图片URL（使用缩略图，因为原图可能不在服务器上）
 const imageUrl = computed(() => {
@@ -143,6 +159,7 @@ const imageUrl = computed(() => {
 // 监听photo变化重置加载状态
 watch(() => props.photo, () => {
   imageLoaded.value = false
+  imageError.value = false
 })
 
 // 格式化日期
@@ -215,6 +232,12 @@ watch(visible, (val) => {
   
   .loading-placeholder {
     color: #fff;
+    text-align: center;
+    
+    p {
+      margin-top: 12px;
+      font-size: 14px;
+    }
   }
 }
 
@@ -261,6 +284,13 @@ watch(visible, (val) => {
     color: #909399;
     font-size: 14px;
   }
+}
+
+.keyboard-hint {
+  text-align: center;
+  font-size: 12px;
+  color: #c0c4cc;
+  margin-top: 8px;
 }
 
 :deep(.photo-preview-dialog) {
