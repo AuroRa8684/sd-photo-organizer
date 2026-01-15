@@ -123,7 +123,7 @@
           size="large"
           @click="handleAIClassify"
           :loading="classifying"
-          :disabled="!scanResult || scanResult.new_imported === 0"
+          :disabled="!scanResult || !scanResult.photos?.length"
         >
           <el-icon><MagicStick /></el-icon>
           {{ classifying ? '分类中...' : '② AI智能分类' }}
@@ -151,7 +151,7 @@
           </template>
         </el-alert>
       </div>
-      <div v-else-if="!classifyResult && scanResult.new_imported > 0" class="action-tip">
+      <div v-else-if="!classifyResult && scanResult.photos?.length > 0" class="action-tip">
         <el-alert type="warning" :closable="false" show-icon>
           <template #title>
             第三步（推荐）：点击"AI智能分类"自动识别照片类别，整理时将按类别分目录存放
@@ -167,6 +167,13 @@
         <el-progress :percentage="scanProgress" :stroke-width="8" :show-text="false" />
         <p>正在扫描照片并生成缩略图，请耐心等待...</p>
         <p class="hint-small">大量照片可能需要几分钟</p>
+      </div>
+      
+      <!-- AI分类进度提示 -->
+      <div v-if="classifying" class="progress-hint">
+        <el-progress :percentage="classifyProgress" :stroke-width="8" status="warning" :show-text="false" />
+        <p>🤖 AI正在分析照片内容并分类...</p>
+        <p class="hint-small">每张照片约需1-2秒，请耐心等待</p>
       </div>
       
       <!-- 整理进度提示 -->
@@ -311,21 +318,24 @@ const getImportButtonTip = () => {
   return '点击整理照片到图库'
 }
 const importProgress = ref(0)
+const classifyProgress = ref(0)
 let progressTimer = null
 
 const startProgressSimulation = (type) => {
-  const progressRef = type === 'scan' ? scanProgress : importProgress
+  const progressRef = type === 'scan' ? scanProgress : type === 'classify' ? classifyProgress : importProgress
   progressRef.value = 0
   clearInterval(progressTimer)
   progressTimer = setInterval(() => {
     if (progressRef.value < 90) {
-      progressRef.value += Math.random() * 15
+      // AI分类较慢，进度条走慢一些
+      const increment = type === 'classify' ? Math.random() * 5 : Math.random() * 15
+      progressRef.value += increment
     }
   }, 500)
 }
 
 const stopProgressSimulation = (type) => {
-  const progressRef = type === 'scan' ? scanProgress : importProgress
+  const progressRef = type === 'scan' ? scanProgress : type === 'classify' ? classifyProgress : importProgress
   clearInterval(progressTimer)
   progressRef.value = 100
 }
@@ -396,6 +406,7 @@ const handleAIClassify = async () => {
   
   classifying.value = true
   classifyResult.value = null
+  startProgressSimulation('classify')
   
   try {
     // 获取所有照片ID进行分类
@@ -414,6 +425,7 @@ const handleAIClassify = async () => {
     const msg = error.response?.data?.detail || error.response?.data?.message || error.message || '未知错误'
     ElMessage.error(`分类失败: ${msg}`)
   } finally {
+    stopProgressSimulation('classify')
     classifying.value = false
   }
 }
