@@ -56,16 +56,7 @@ app = FastAPI(
 # 配置 CORS（允许前端跨域访问）
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:5173",  # Vite 默认端口
-        "http://127.0.0.1:5174",  # Vite 备用端口
-        "http://127.0.0.1:5175",
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://127.0.0.1:3000",
-        "http://localhost:3000",
-    ],
+    allow_origins=["*"],  # 允许所有来源（包括从文件系统打开的HTML）
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

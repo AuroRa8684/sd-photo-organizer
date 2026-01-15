@@ -538,7 +538,42 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 
     <script>
-      const { createApp, ref, reactive, computed } = Vue;
+      const { createApp, ref, reactive, computed, onMounted, watch, nextTick } = Vue;
+
+      // 后端API地址
+      const API_BASE = "http://127.0.0.1:8000";
+
+      // API 封装
+      const api = {
+        async get(url) {
+          const res = await fetch(API_BASE + url);
+          return res.json();
+        },
+        async post(url, data) {
+          const res = await fetch(API_BASE + url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+          return res.json();
+        },
+        async patch(url, data) {
+          const res = await fetch(API_BASE + url, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+          return res.json();
+        },
+        async delete(url, data) {
+          const res = await fetch(API_BASE + url, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: data ? JSON.stringify(data) : undefined,
+          });
+          return res.json();
+        },
+      };
 
       createApp({
         setup() {
@@ -548,7 +583,16 @@
           const sortOrder = ref("desc");
           const previewOpen = ref(false);
 
-          // 是否已完成“导入照片”（控制 AI 美化模块启用）
+          // SD卡路径
+          const sdPath = ref("");
+          const libraryPath = ref("D:\\Photos");
+          const showPathInput = ref(false);
+          const scanning = ref(false);
+          const classifying = ref(false);
+          const currentPage = ref(1);
+          const totalPhotos = ref(0);
+
+          // 是否已完成导入“导入照片”（控制 AI 美化模块启用）
           const photosImported = ref(false);
 
           // AI 美化相关
@@ -680,41 +724,182 @@
           }
 
           function mockImportPhotos() {
-            const base = Array.from({ length: 12 }).map((_, i) => ({
-              id: i + 1,
-              name: `IMG_${String(i + 1).padStart(4, "0")}.JPG`,
-              format: i % 3 === 0 ? "RAW" : "JPG",
-              date: "2025-01-12",
-              time: ["上午 10:12", "下午 15:08", "晚上 19:21"][i % 3],
-              resolution: ["6000x4000", "8256x5504"][i % 2],
-              size: ["12.4MB", "28.1MB"][i % 2],
-              status: i % 2 === 0 ? "synced" : "unsynced",
-              period: ["上午", "下午", "晚上", "凌晨"][i % 4]
-            }));
-            photos.value = base;
-            photosImported.value = true;
-            if (!selectedPhoto.value && base.length) {
-              selectedPhoto.value = base[0];
+            // 改为使用真实API
+          }
+
+          // 从后端加载照片
+          async function loadPhotosFromAPI() {
+            try {
+              const res = await api.get(`/photos?page=${currentPage.value}&page_size=50`);
+              if (res.data && res.data.photos) {
+                photos.value = res.data.photos.map(p => ({
+                  id: p.id,
+                  name: p.file_name,
+                  format: p.has_raw ? "RAW" : "JPG",
+                  date: p.taken_at ? p.taken_at.split("T")[0] : "未知",
+                  time: p.taken_at ? formatTime(p.taken_at) : "",
+                  resolution: `${p.width || 0}x${p.height || 0}`,
+                  size: formatFileSize(p.file_size),
+                  status: p.library_path ? "synced" : "unsynced",
+                  period: getTimePeriod(p.taken_at),
+                  category: p.category || "未分类",
+                  thumb_url: p.thumb_url,
+                  is_selected: p.is_selected,
+                  camera_model: p.camera_model,
+                  lens: p.lens,
+                  focal_length: p.focal_length,
+                  aperture: p.aperture,
+                  shutter: p.shutter,
+                  iso: p.iso,
+                }));
+                totalPhotos.value = res.data.total;
+                photosImported.value = photos.value.length > 0;
+                if (!selectedPhoto.value && photos.value.length) {
+                  selectedPhoto.value = photos.value[0];
+                }
+              }
+            } catch (e) {
+              console.error("加载照片失败:", e);
             }
-            aiSummary.value =
-              "共导入 " +
-              base.length +
-              " 张照片，时间跨度 1 天；示例：JPG 约 70%，RAW 约 30%；高频拍摄时段集中在上午与傍晚，人像与风光比例均衡。";
+          }
+
+          function formatTime(dateStr) {
+            if (!dateStr) return "";
+            const d = new Date(dateStr);
+            const h = d.getHours();
+            const m = d.getMinutes();
+            const period = h < 6 ? "凌晨" : h < 12 ? "上午" : h < 18 ? "下午" : "晚上";
+            return `${period} ${h}:${String(m).padStart(2, "0")}`;
+          }
+
+          function formatFileSize(bytes) {
+            if (!bytes) return "未知";
+            if (bytes < 1024) return bytes + "B";
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + "KB";
+            return (bytes / 1024 / 1024).toFixed(1) + "MB";
+          }
+
+          function getTimePeriod(dateStr) {
+            if (!dateStr) return "未知";
+            const h = new Date(dateStr).getHours();
+            return h < 6 ? "凌晨" : h < 12 ? "上午" : h < 18 ? "下午" : "晚上";
+          }
+
+          function getThumbUrl(photo) {
+            if (!photo.thumb_url) return "";
+            return API_BASE + photo.thumb_url;
+          }
+
+          async function scanSdCard() {
+            if (!sdPath.value) {
+              alert("请输入SD卡路径");
+              showPathInput.value = true;
+              return;
+            }
+            scanning.value = true;
+            progress.read = 10;
+            pStatus.read = "active";
+            try {
+              const res = await api.post("/photos/scan", { sd_path: sdPath.value });
+              progress.read = 100;
+              pStatus.read = "success";
+              if (res.error) {
+                alert("扫描失败: " + res.message);
+                return;
+              }
+              sdConnected.value = true;
+              photosImported.value = true;
+              await loadPhotosFromAPI();
+              await loadSummary();
+            } catch (e) {
+              progress.read = 0;
+              pStatus.read = "error";
+              alert("扫描失败: " + e.message);
+            } finally {
+              scanning.value = false;
+            }
+          }
+
+          async function classifyAllPhotos() {
+            if (photos.value.length === 0) {
+              alert("请先导入照片");
+              return;
+            }
+            classifying.value = true;
+            progress.classify = 10;
+            pStatus.classify = "active";
+            try {
+              const photoIds = photos.value.map(p => p.id);
+              const res = await api.post("/ai/classify", { 
+                photo_ids: photoIds,
+                max_workers: 4,
+                skip_classified: true
+              });
+              progress.classify = 100;
+              pStatus.classify = "success";
+              await loadPhotosFromAPI();
+              alert(res.message || "分类完成");
+            } catch (e) {
+              progress.classify = 0;
+              pStatus.classify = "error";
+              alert("分类失败: " + e.message);
+            } finally {
+              classifying.value = false;
+            }
+          }
+
+          async function loadSummary() {
+            try {
+              const res = await api.post("/summary/generate", { save_history: true });
+              if (res.data && res.data.ai_summary) {
+                aiSummary.value = res.data.ai_summary;
+              }
+            } catch (e) {
+              console.error("生成总结失败:", e);
+            }
           }
 
           function connectSdCard() {
-            // 空壳模拟：点击后认为已插入卡并触发进度 + 导入
-            sdConnected.value = !sdConnected.value;
-
-            progress.read = 0; progress.classify = 0; progress.sync = 0;
-            pStatus.read = "active"; pStatus.classify = "active"; pStatus.sync = "active";
-
-            if (!sdConnected.value) {
+            if (sdConnected.value) {
+              sdConnected.value = false;
               photos.value = [];
               photosImported.value = false;
               selectedPhoto.value = null;
+              progress.read = 0;
+              progress.classify = 0;
+              progress.sync = 0;
               return;
             }
+            if (!sdPath.value) {
+              showPathInput.value = true;
+            } else {
+              scanSdCard();
+            }
+          }
+
+          function preview(p) {
+            if (p) selectedPhoto.value = p;
+            previewOpen.value = true;
+          }
+
+          async function loadMore() {
+            if (!photosImported.value) {
+              alert("请先导入照片");
+              return;
+            }
+            currentPage.value++;
+            await loadPhotosFromAPI();
+          }
+
+          // AI 美化交互
+          function triggerEnhance() {
+            if (!canUseEnhance.value) { alert("请先导入照片"); return; }
+            enhanceStatus.value = "processing";
+            setTimeout(() => { enhanceStatus.value = "done"; }, 800);
+          }
+
+          function enqueueBatch() {
+            if (!filteredPhotos.value.length) { alert("没有照片"); return; }
 
             const step = () => {
               progress.read = Math.min(100, progress.read + 10);
@@ -812,9 +997,24 @@
             }
           }
 
+          // 页面加载时自动加载已有照片
+          onMounted(async () => {
+            try {
+              await loadPhotosFromAPI();
+              if (photos.value.length > 0) {
+                sdConnected.value = true;
+                progress.read = 100;
+                pStatus.read = "success";
+              }
+            } catch (e) {
+              console.log("初始加载:", e);
+            }
+          });
+
           return {
             sdConnected, syncOn, collapsed, sortOrder, previewOpen,
             photosImported,
+            sdPath, libraryPath, showPathInput, scanning, classifying, currentPage, totalPhotos,
             enhanceMode, selectedPhoto, enhanceStrength, enhanceStyle, enhanceStatus, enhanceQueue,
             canUseEnhance,
             fileTypes, years, months, days, periods, statuses,
@@ -822,7 +1022,7 @@
             progress, pStatus, stats, aiSummary,
             toggleType, toggleStatus, removeTag, clearFilters,
             connectSdCard, openSettings, exportAISummary,
-            preview, loadMore,
+            preview, loadMore, scanSdCard, classifyAllPhotos, loadPhotosFromAPI, getThumbUrl,
             exportReport, exportClassified, reRead, reClassify, syncLocal, clearCache, copySummary,
             triggerEnhance, enqueueBatch
           };
@@ -839,9 +1039,25 @@
                 </div>
               </div>
               <div class="top-actions">
-                <button class="btn primary" @click="connectSdCard">
+                <!-- SD卡路径输入弹窗 -->
+                <div v-if="showPathInput" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;">
+                  <div style="background:#fff;padding:24px;border-radius:16px;min-width:400px;">
+                    <h3 style="margin:0 0 16px;">输入SD卡路径</h3>
+                    <input v-model="sdPath" placeholder="例如: E:\\DCIM 或 D:\\Photos" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;margin-bottom:12px;">
+                    <div style="display:flex;gap:8px;justify-content:flex-end;">
+                      <button class="btn ghost" @click="showPathInput=false">取消</button>
+                      <button class="btn primary" @click="showPathInput=false;scanSdCard()">开始扫描</button>
+                    </div>
+                  </div>
+                </div>
+                
+                <button class="btn primary" @click="connectSdCard" :disabled="scanning">
                   <span class="dot" :class="sdConnected ? 'on' : 'off'"></span>
-                  {{ sdConnected ? 'SD 卡已连接 · 模拟重新读取' : 'SD 卡连接 / 读取' }}
+                  {{ scanning ? '扫描中...' : (sdConnected ? '已连接 · 重新扫描' : 'SD 卡连接 / 读取') }}
+                </button>
+                
+                <button class="btn ghost" @click="classifyAllPhotos" :disabled="classifying || !photosImported">
+                  {{ classifying ? 'AI分类中...' : 'AI 智能分类' }}
                 </button>
 
                 <label class="toggle" title="开启后模拟同步进度">
@@ -963,12 +1179,12 @@
 
                 <div v-if="hasPhotos" class="masonry">
                   <div class="photo-card" v-for="p in filteredPhotos" :key="p.id">
-                    <div class="photo" @click="preview(p)" :title="p.name">
+                    <div class="photo" @click="preview(p)" :title="p.name" :style="p.thumb_url ? { backgroundImage: 'url(' + getThumbUrl(p) + ')', backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
                       <div class="badge format">{{ p.format }}</div>
                       <div class="badge date">{{ p.date }}</div>
-                      <div class="badge ai">
+                      <div class="badge ai" v-if="p.category && p.category !== '未分类'">
                         <span class="dot-mini"></span>
-                        AI 美化候选
+                        {{ p.category }}
                       </div>
                     </div>
                     <div class="hover-info">
@@ -979,7 +1195,7 @@
                         <span class="pill-soft">{{ p.time }}</span>
                       </div>
                       <div>{{ p.format }} · {{ p.resolution }}</div>
-                      <div>{{ p.size }} · {{ p.status === 'synced' ? '已同步' : '未同步' }}</div>
+                      <div>{{ p.size }} · {{ p.category || '未分类' }}</div>
                     </div>
                   </div>
                 </div>
