@@ -223,6 +223,7 @@ frontend/dist/
 data/
 exports/
 thumbs/
+storage/
 *.zip
 *.db
 
