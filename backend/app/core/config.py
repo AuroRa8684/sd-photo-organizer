@@ -2,6 +2,7 @@
 配置管理模块
 从环境变量/.env文件读取配置
 """
+from typing import List
 from pathlib import Path
 from pydantic import Field  # 新增：用于配置验证
 from pydantic_settings import BaseSettings
@@ -17,6 +18,9 @@ class Settings(BaseSettings):
     app_host: str = "127.0.0.1"
     app_port: int = 8000
     
+    # 跨域配置（新增：解决main.py CORS报错）
+    CORS_ORIGINS: List[str] = Field(default=["http://127.0.0.1:5173"])  # 前端默认地址
+    
     # 数据库配置
     # 使用 sqlite 则自动使用SQLite（开发方便，无需安装MySQL）
     # 使用 mysql 则连接MySQL数据库
@@ -25,9 +29,9 @@ class Settings(BaseSettings):
     # MySQL配置（当db_type=mysql时使用）
     mysql_host: str = "127.0.0.1"
     mysql_port: int = 3306
-    mysql_user: str = "sd_user"
-    mysql_password: str = "sd_pass"
-    mysql_db: str = "sd_photo"
+    mysql_user: str = "photoapp"  # 原sd_user → 改为photoapp
+    mysql_password: str = "photoapp_pwd"  # 原sd_pass → 改为photoapp_pwd
+    mysql_db: str = "photoapp"  # 原sd_photo → 改为photoapp
     
     # AI配置
     ai_api_key: str = ""
