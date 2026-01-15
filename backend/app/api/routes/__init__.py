@@ -7,8 +7,8 @@ from .summary_router import router as summary_router
 from .export_router import router as export_router
 
 __all__ = [
-    "photos_router",
-    "ai_router",
-    "summary_router",
-    "export_router",
+    "photos",
+    "ai",
+    "summary",
+    "export",
 ]

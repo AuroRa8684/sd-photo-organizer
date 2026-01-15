@@ -10,17 +10,27 @@ SD Photo Organizer - FastAPI 后端应用入口
 """
 from pathlib import Path
 from contextlib import asynccontextmanager
+import asyncio  # 新增：用于异步执行同步DB初始化
+import logging  # 新增：日志模块
+import sys      # 新增：日志输出配置
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .core.config import get_settings
+from .core.config import get_settings, Settings  # 新增：导入Settings类型
 from .db import init_db
 from .api.routes import photos_router, ai_router, summary_router, export_router
 
+# 新增：全局日志配置（替换print，生产环境必备）
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
 
-# 获取配置
-settings = get_settings()
+# 获取配置 - 新增：补充类型注解
+settings: Settings = get_settings()
 
 
 @asynccontextmanager
@@ -30,18 +40,28 @@ async def lifespan(app: FastAPI):
     启动时初始化数据库，关闭时清理资源
     """
     # 启动时执行
-    print("🚀 正在初始化数据库...")
-    init_db()
-    print("✅ 数据库初始化完成")
+    logger.info("🚀 正在初始化数据库...")  # 修改：替换print为logger
+    try:
+        # 修改：异步执行同步DB初始化，避免阻塞异步事件循环
+        await asyncio.to_thread(init_db)
+        logger.info("✅ 数据库初始化完成")  # 修改：替换print为logger
+    except Exception as e:
+        # 新增：异常捕获，避免DB初始化失败导致应用崩溃
+        logger.error(f"❌ 数据库初始化失败: {str(e)}", exc_info=True)
+        raise
     
-    # 确保缩略图目录存在
-    settings.thumbs_path.mkdir(parents=True, exist_ok=True)
-    print(f"📁 缩略图目录: {settings.thumbs_path}")
+    # 确保缩略图目录存在（仅保留一次创建）
+    try:
+        settings.thumbs_path.mkdir(parents=True, exist_ok=True)
+        logger.info(f"📁 缩略图目录: {settings.thumbs_path}")  # 修改：替换print为logger
+    except Exception as e:
+        logger.error(f"❌ 缩略图目录创建失败: {str(e)}", exc_info=True)
+        raise
     
     yield
     
     # 关闭时执行
-    print("👋 应用正在关闭...")
+    logger.info("👋 应用正在关闭...")  # 修改：替换print为logger
 
 
 # 创建 FastAPI 应用
@@ -56,16 +76,7 @@ app = FastAPI(
 # 配置 CORS（允许前端跨域访问）
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:5173",  # Vite 默认端口
-        "http://127.0.0.1:5174",  # Vite 备用端口
-        "http://127.0.0.1:5175",
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://127.0.0.1:3000",
-        "http://localhost:3000",
-    ],
+    allow_origins=settings.CORS_ORIGINS,  # 修改：从配置读取，替代硬编码
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -74,9 +85,8 @@ app.add_middleware(
 
 # 挂载静态文件目录（缩略图）
 # 前端可通过 /static/thumbs/{sha1}.jpg 访问缩略图
-thumbs_dir = settings.thumbs_path
-thumbs_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/static/thumbs", StaticFiles(directory=str(thumbs_dir)), name="thumbs")
+# 修改：移除重复的目录创建代码，路径用as_posix()适配跨系统
+app.mount("/static/thumbs", StaticFiles(directory=settings.thumbs_path.as_posix()), name="thumbs")
 
 
 # 注册 API 路由
