@@ -211,8 +211,8 @@ watch(visible, (val) => {
 <style lang="scss" scoped>
 .preview-container {
   display: flex;
-  gap: 20px;
-  height: 70vh;
+  gap: 16px;
+  height: 85vh;
 }
 
 .preview-image {
@@ -223,11 +223,14 @@ watch(visible, (val) => {
   background: #1a1a1a;
   border-radius: 8px;
   overflow: hidden;
+  min-width: 0; // 防止 flex 子元素撑开
   
   img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
+    width: auto;
+    height: auto;
   }
   
   .loading-placeholder {
@@ -242,7 +245,7 @@ watch(visible, (val) => {
 }
 
 .preview-sidebar {
-  width: 280px;
+  width: 220px;
   flex-shrink: 0;
   overflow-y: auto;
   
@@ -295,7 +298,10 @@ watch(visible, (val) => {
 
 :deep(.photo-preview-dialog) {
   .el-dialog__body {
-    padding: 20px;
+    padding: 12px 16px;
+  }
+  .el-dialog__header {
+    padding: 12px 16px;
   }
 }
 </style>

@@ -113,7 +113,7 @@
           </div>
           <!-- 勾选框(用于批量操作) -->
           <div class="photo-check" @click.stop="togglePhotoCheck(photo)">
-            <el-checkbox :model-value="isPhotoChecked(photo.id)" @click.stop />
+            <el-checkbox :model-value="isPhotoChecked(photo.id)" class="no-pointer" />
           </div>
           <!-- 精选标记 -->
           <div 
@@ -584,6 +584,10 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    
+    .no-pointer {
+      pointer-events: none; // checkbox不拦截点击，由父div处理
+    }
   }
   
   .photo-star {
