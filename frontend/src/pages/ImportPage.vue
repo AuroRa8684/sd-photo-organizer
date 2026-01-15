@@ -412,12 +412,13 @@ const handleAIClassify = async () => {
     // 获取所有照片ID进行分类
     const photoIds = scanResult.value.photos.map(p => p.id)
     const res = await classifyPhotos(photoIds, 4, true)
-    classifyResult.value = res.data
+    classifyResult.value = res.data || res
     
-    if (res.data.success === false) {
-      ElMessage.warning(res.data.message || 'AI分类需要配置API Key')
+    const data = res.data || res
+    if (data.success === false) {
+      ElMessage.warning(data.message || 'AI分类需要配置API Key')
     } else {
-      ElMessage.success(res.message || `分类完成：${res.data.classified || 0}张照片`)
+      ElMessage.success(res.message || data.message || `分类完成：${data.classified || 0}张照片`)
     }
     loadStats()
   } catch (error) {

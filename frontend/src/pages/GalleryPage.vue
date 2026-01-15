@@ -435,7 +435,8 @@ const handleAIClassify = async (skipClassified = false) => {
   
   try {
     const res = await classifyPhotos(selectedIds.value, 4, skipClassified)
-    ElMessage.success(res.data.message || 'AI分类完成')
+    const data = res.data || res
+    ElMessage.success(data.message || 'AI分类完成')
     loadPhotos()
     selectedIds.value = []
     selectAll.value = false
